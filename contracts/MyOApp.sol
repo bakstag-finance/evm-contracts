@@ -11,6 +11,30 @@ contract MyOApp is OApp {
 
     string public data = "Nothing received yet.";
 
+    // Mapping to track the maximum received nonce for each source endpoint and sender
+    mapping(uint32 eid => mapping(bytes32 sender => uint64 nonce)) private receivedNonce;
+
+    /**
+     * @dev Public function to get the next expected nonce for a given source endpoint and sender.
+     * @param _srcEid Source endpoint ID.
+     * @param _sender Sender's address in bytes32 format.
+     * @return uint64 Next expected nonce.
+     */
+    function nextNonce(uint32 _srcEid, bytes32 _sender) public view virtual override returns (uint64) {
+        return receivedNonce[_srcEid][_sender] + 1;
+    }
+
+     /**
+     * @dev Internal function to accept nonce from the specified source endpoint and sender.
+     * @param _srcEid Source endpoint ID.
+     * @param _sender Sender's address in bytes32 format.
+     * @param _nonce The nonce to be accepted.
+     */
+    function _acceptNonce(uint32 _srcEid, bytes32 _sender, uint64 _nonce) internal virtual {
+        receivedNonce[_srcEid][_sender] += 1;
+        require(_nonce == receivedNonce[_srcEid][_sender], "OApp: invalid nonce");
+    }
+
     /**
      * @notice Sends a message from the source chain to a destination chain.
      * @param _dstEid The endpoint ID of the destination chain.
@@ -50,7 +74,7 @@ contract MyOApp is OApp {
      * @dev Internal function override to handle incoming messages from another chain.
      * @dev _origin A struct containing information about the message sender.
      * @dev _guid A unique global packet identifier for the message.
-     * @param payload The encoded message payload being received.
+     * @param _payload The encoded message payload being received.
      *
      * @dev The following params are unused in the current implementation of the OApp.
      * @dev _executor The address of the Executor responsible for processing the message.
@@ -61,10 +85,10 @@ contract MyOApp is OApp {
     function _lzReceive(
         Origin calldata /*_origin*/,
         bytes32 /*_guid*/,
-        bytes calldata payload,
+        bytes calldata _payload,
         address /*_executor*/,
         bytes calldata /*_extraData*/
     ) internal override {
-        data = abi.decode(payload, (string));
+        data = abi.decode(_payload, (string));
     }
 }

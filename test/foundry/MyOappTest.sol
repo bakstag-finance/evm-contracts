@@ -46,9 +46,9 @@ contract MyOAppTest is TestHelperOz5 {
 
         // Generates 1 lzReceive execution option via the OptionsBuilder library.
         // STEP 0: Estimating message gas fees via the quote function.
-        bytes memory options = OptionsBuilder.newOptions().addExecutorLzReceiveOption(150000, 0);
+        bytes memory options = OptionsBuilder.newOptions().addExecutorLzReceiveOption(150000, 0).addExecutorOrderedExecutionOption();
         MessagingFee memory fee = aMyOApp.quote(bEid, "test message", options, false);
-
+        
         // STEP 1: Sending a message via the _lzSend() method.
         MessagingReceipt memory receipt = aMyOApp.send{ value: fee.nativeFee }(bEid, "test message", options);
 
