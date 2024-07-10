@@ -19,8 +19,9 @@ abstract contract OtcMarketCreateOffer is OtcMarketCore {
         bytes32 _dstTokenAddress,
         uint256 _srcAmountLD,
         uint64 _exchangeRateSD,
-        bytes calldata _extraOptions // Additional advertiser LZ options
-    ) public payable virtual override returns (MessagingReceipt memory msgReceipt, bytes32 newOfferId) {
+        bytes calldata _extraOptions, // Additional advertiser LZ options
+        MessagingFee calldata _fee
+    ) public payable virtual override returns (MessagingReceipt memory msgReceipt, bytes32 offerId) {
         address _advertiser = msg.sender;
         bytes32 advertiser = addressToBytes32(_advertiser);
 
@@ -29,12 +30,12 @@ abstract contract OtcMarketCreateOffer is OtcMarketCore {
         uint64 srcAmountSD = toSD(_srcAmountLD, decimalConversionRate);
         uint256 srcAmountLD = toLD(srcAmountSD, decimalConversionRate); // remove dust
 
-        newOfferId = hashOffer(advertiser, eid, _dstEid, _srcTokenAddress, _dstTokenAddress, _exchangeRateSD);
-        if (offers[newOfferId].advertiser != bytes32("")) {
-            revert OfferAlreadyExists(newOfferId);
+        offerId = hashOffer(advertiser, eid, _dstEid, _srcTokenAddress, _dstTokenAddress, _exchangeRateSD);
+        if (offers[offerId].advertiser != bytes32("")) {
+            revert OfferAlreadyExists(offerId);
         }
 
-        offers[newOfferId] = Offer(
+        Offer memory offer = Offer(
             advertiser,
             _beneficiary,
             eid,
@@ -44,8 +45,10 @@ abstract contract OtcMarketCreateOffer is OtcMarketCore {
             srcAmountSD,
             _exchangeRateSD
         );
+
+        offers[offerId] = offer;
         emit OfferCreated(
-            newOfferId,
+            offerId,
             advertiser,
             _beneficiary,
             eid,
@@ -58,23 +61,69 @@ abstract contract OtcMarketCreateOffer is OtcMarketCore {
         
         ERC20(srcTokenAddress).transferFrom(_advertiser, address(this), srcAmountLD);
 
-        bytes memory messagePayload = abi.encodePacked(
-            newOfferId,
-            advertiser,
-            _beneficiary,
-            eid,
-            _dstEid,
-            _srcTokenAddress,
-            _dstTokenAddress,
-            srcAmountSD,
-            _exchangeRateSD
+        (bytes memory payload, bytes memory options) = _buildCreateOfferMsgAndOptions(
+            offerId,
+            offer,
+            _extraOptions
         );
-        bytes memory payload = abi.encodePacked(Message.OfferCreated, messagePayload);
+        
+        msgReceipt = _lzSend(_dstEid, payload, options, _fee, payable(_advertiser));
+    }
+
+    function quoteCreateOffer(
+        bytes32 _advertiser,
+        bytes32 _beneficiary,
+        uint32 _dstEid,
+        bytes32 _srcTokenAddress,
+        bytes32 _dstTokenAddress,
+        uint256 _srcAmountLD,
+        uint64 _exchangeRateSD,
+        bytes calldata _extraOptions,
+        bool _payInLzToken
+    ) public payable virtual returns (MessagingFee memory fee) {
+        address srcTokenAddress = bytes32ToAddress(_srcTokenAddress);
+        uint256 decimalConversionRate = 10 ** (ERC20(srcTokenAddress).decimals() - sharedDecimals);
+        uint64 srcAmountSD = toSD(_srcAmountLD, decimalConversionRate);
+
+        bytes32 offerId = hashOffer(_advertiser, eid, _dstEid, _srcTokenAddress, _dstTokenAddress, _exchangeRateSD);
+
+        (bytes memory payload, bytes memory options) = _buildCreateOfferMsgAndOptions(
+            offerId,
+            Offer(
+                _advertiser,
+                _beneficiary,
+                eid,
+                _dstEid,
+                _srcTokenAddress,
+                _dstTokenAddress,
+                srcAmountSD,
+                _exchangeRateSD
+            ),
+            _extraOptions
+        );
+
+        fee = _quote(_dstEid, payload, options, _payInLzToken);
+    }
+
+    function _buildCreateOfferMsgAndOptions(
+        bytes32 _offerId,
+        Offer memory _offer,
+        bytes calldata _extraOptions
+    ) internal view virtual returns (bytes memory payload, bytes memory options) {
+        bytes memory msgPayload = abi.encodePacked(
+            _offerId,
+            _offer.advertiser,
+            _offer.beneficiary,
+            _offer.srcEid,
+            _offer.dstEid,
+            _offer.srcTokenAddress,
+            _offer.dstTokenAddress,
+            _offer.srcAmountSD,
+            _offer.exchangeRateSD
+        );
+        payload = abi.encodePacked(Message.OfferCreated, msgPayload);
 
         // Combine the advertiser _extraOptions with the enforced options via the {OAppOptionsType3}.
-        bytes memory options = combineOptions(_dstEid, uint16(Message.OfferCreated), _extraOptions);
-
-        // TODO: deal with MessagingFee
-        msgReceipt = _lzSend(_dstEid, payload, options, MessagingFee(msg.value, 0), payable(_advertiser));
+        options = combineOptions(_offer.dstEid, uint16(Message.OfferCreated), _extraOptions);
     }
 }

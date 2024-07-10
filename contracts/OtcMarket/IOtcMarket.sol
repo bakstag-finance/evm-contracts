@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import { MessagingReceipt } from "@layerzerolabs/lz-evm-oapp-v2/contracts/oapp/OApp.sol";
+import { MessagingReceipt, MessagingFee } from "@layerzerolabs/lz-evm-oapp-v2/contracts/oapp/OApp.sol";
 
 /**
  * @dev Interface of the {OtcMarket}.
@@ -21,9 +21,8 @@ interface IOtcMarket {
         uint32 dstEid;
         bytes32 srcTokenAddress;
         bytes32 dstTokenAddress;
-        // TODO: restrict
-        uint128 srcAmount;
-        uint128 exchangeRate; // price per source token in target token units
+        uint64 srcAmountSD;
+        uint64 exchangeRateSD; // price per source token in destination token units
     }
 
     /**
@@ -77,7 +76,8 @@ interface IOtcMarket {
         bytes32 _srcTokenAddress,
         bytes32 _dstTokenAddress,
         uint256 _srcAmountLD,
-        uint64 _exchangeRate,
-        bytes calldata _extraOptions
+        uint64 _exchangeRateSD,
+        bytes calldata _extraOptions,
+        MessagingFee calldata _fee
     ) external payable returns (MessagingReceipt memory msgReceipt, bytes32 newOfferId);
 }
