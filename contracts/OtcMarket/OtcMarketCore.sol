@@ -1,19 +1,19 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 
-import { OApp, MessagingFee, MessagingReceipt } from "@layerzerolabs/lz-evm-oapp-v2/contracts/oapp/OApp.sol";
+import { OApp, MessagingFee, MessagingReceipt, Origin } from "@layerzerolabs/lz-evm-oapp-v2/contracts/oapp/OApp.sol";
 import { ILayerZeroEndpointV2 } from "@layerzerolabs/lz-evm-protocol-v2/contracts/interfaces/ILayerZeroEndpointV2.sol";
+import { OAppOptionsType3, EnforcedOptionParam } from "@layerzerolabs/lz-evm-oapp-v2/contracts/oapp/libs/OAppOptionsType3.sol";
 
 import { IOtcMarket } from "./IOtcMarket.sol";
-import "./Utils.sol";
 
 /**
  * @dev See {IOtcMarket}.
  */
-abstract contract OtcMarketCore is IOtcMarket, OApp {
+abstract contract OtcMarketCore is IOtcMarket, OApp, OAppOptionsType3 {
+    uint8 public constant sharedDecimals = 6;
     uint32 public immutable eid;
 
     constructor(address _endpoint, address _delegate) OApp(_endpoint, _delegate) Ownable(_delegate) {
@@ -77,7 +77,7 @@ abstract contract OtcMarketCore is IOtcMarket, OApp {
         uint32 _dstEid,
         bytes32 _srcTokenAddress,
         bytes32 _dstTokenAddress,
-        uint128 _exchangeRate
+        uint64 _exchangeRate
     ) public pure virtual override returns (bytes32 offerId) {
         return (
             keccak256(
@@ -86,62 +86,25 @@ abstract contract OtcMarketCore is IOtcMarket, OApp {
         );
     }
 
-    function createOffer(
-        bytes32 _beneficiary,
-        uint32 _dstEid,
-        bytes32 _srcTokenAddress,
-        bytes32 _dstTokenAddress,
-        uint128 _srcAmount,
-        uint128 _exchangeRate
-    ) public payable virtual override returns (bytes32 newOfferId) {
-        address _advertiser = msg.sender;
-        bytes32 advertiser = addressToBytes32(_advertiser);
+    /**
+     * @dev Internal function override to handle incoming messages from another chain.
+     * @dev _origin A struct containing information about the message sender.
+     * @dev _guid A unique global packet identifier for the message.
+     * @param _payload The encoded message payload being received.
+     *
+     * @dev The following params are unused in the current implementation of the OApp.
+     * @dev _executor The address of the Executor responsible for processing the message.
+     * @dev _extraData Arbitrary data appended by the Executor to the message.
+     *
+     * Decodes the received payload and processes it as per the business logic defined in the function.
+     */
+    function _lzReceive(
+        Origin calldata /*_origin*/,
+        bytes32 /*_guid*/,
+        bytes calldata _payload,
+        address /*_executor*/,
+        bytes calldata /*_extraData*/
+    ) internal virtual override {
 
-        // TODO: remove dust
-
-        newOfferId = hashOffer(advertiser, eid, _dstEid, _srcTokenAddress, _dstTokenAddress, _exchangeRate);
-        if (offers[newOfferId].advertiser != bytes32("")) {
-            revert OfferAlreadyExists(newOfferId);
-        }
-
-        offers[newOfferId] = Offer(
-            advertiser,
-            _beneficiary,
-            eid,
-            _dstEid,
-            _srcTokenAddress,
-            _dstTokenAddress,
-            _srcAmount,
-            _exchangeRate
-        );
-        emit OfferCreated(
-            newOfferId,
-            advertiser,
-            _beneficiary,
-            eid,
-            _dstEid,
-            _srcTokenAddress,
-            _dstTokenAddress,
-            _srcAmount,
-            _exchangeRate
-        );
-
-        IERC20(bytes32ToAddress(_srcTokenAddress)).transferFrom(_advertiser, address(this), _srcAmount);
-
-        bytes memory messagePayload = abi.encodePacked(
-            newOfferId,
-            advertiser,
-            _beneficiary,
-            eid,
-            _dstEid,
-            _srcTokenAddress,
-            _dstTokenAddress,
-            _srcAmount,
-            _exchangeRate
-        );
-        bytes memory payload = abi.encodePacked(Message.OfferCreated, messagePayload);
-
-        // TODO: deal with options
-        // MessagingReceipt memory receipt = _lzSend(_dstEid, payload, _options, MessagingFee(msg.value, 0), payable(_advertiser));
     }
 }
