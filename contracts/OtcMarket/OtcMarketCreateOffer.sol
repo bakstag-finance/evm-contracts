@@ -18,11 +18,10 @@ abstract contract OtcMarketCreateOffer is OtcMarketCore {
     ) public payable virtual override returns (MessagingReceipt memory msgReceipt, bytes32 offerId) {
         address _advertiser = msg.sender;
         bytes32 advertiser = addressToBytes32(_advertiser);
-
-        address srcTokenAddress = bytes32ToAddress(_params.srcTokenAddress);
-        uint256 decimalConversionRate = 10 ** (ERC20(srcTokenAddress).decimals() - sharedDecimals);
-        uint64 srcAmountSD = toSD(_params.srcAmountLD, decimalConversionRate);
-        uint256 srcAmountLD = toLD(srcAmountSD, decimalConversionRate); // remove dust
+        (uint64 srcAmountSD, uint256 srcAmountLD) = _removeDust(
+            _params.srcAmountLD,
+            bytes32ToAddress(_params.srcTokenAddress)
+        );
 
         offerId = hashOffer(
             advertiser,
@@ -36,7 +35,7 @@ abstract contract OtcMarketCreateOffer is OtcMarketCore {
             revert OfferAlreadyExists(offerId);
         }
 
-        Offer memory offer = Offer(
+        offers[offerId] = Offer(
             advertiser,
             _params.beneficiary,
             eid,
@@ -47,23 +46,12 @@ abstract contract OtcMarketCreateOffer is OtcMarketCore {
             _params.exchangeRateSD
         );
 
-        offers[offerId] = offer;
-        emit OfferCreated(
-            offerId,
-            advertiser,
-            _params.beneficiary,
-            eid,
-            _params.dstEid,
-            _params.srcTokenAddress,
-            _params.dstTokenAddress,
-            srcAmountSD,
-            _params.exchangeRateSD
-        );
+        _emitOfferCreated(offerId, offers[offerId]);
 
-        (bytes memory payload, bytes memory options) = _buildCreateOfferMsgAndOptions(offerId, offer);
+        (bytes memory payload, bytes memory options) = _buildCreateOfferMsgAndOptions(offerId, offers[offerId]);
         msgReceipt = _lzSend(_params.dstEid, payload, options, _fee, payable(_advertiser));
 
-        ERC20(srcTokenAddress).transferFrom(_advertiser, address(this), srcAmountLD);
+        ERC20(bytes32ToAddress(_params.srcTokenAddress)).transferFrom(_advertiser, address(this), srcAmountLD);
     }
 
     function quoteCreateOffer(
@@ -71,9 +59,10 @@ abstract contract OtcMarketCreateOffer is OtcMarketCore {
         CreateOfferParams calldata _params,
         bool _payInLzToken
     ) public payable virtual returns (MessagingFee memory fee) {
-        address srcTokenAddress = bytes32ToAddress(_params.srcTokenAddress);
-        uint256 decimalConversionRate = 10 ** (ERC20(srcTokenAddress).decimals() - sharedDecimals);
-        uint64 srcAmountSD = toSD(_params.srcAmountLD, decimalConversionRate);
+        (uint64 srcAmountSD, ) = _removeDust(
+            _params.srcAmountLD,
+            bytes32ToAddress(_params.srcTokenAddress)
+        );
 
         bytes32 offerId = hashOffer(
             _advertiser,
@@ -101,10 +90,26 @@ abstract contract OtcMarketCreateOffer is OtcMarketCore {
         fee = _quote(_params.dstEid, payload, options, _payInLzToken);
     }
 
+    function _receiveCreateOffer(bytes32 _offerId, Offer memory _offer) internal virtual override {
+        offers[_offerId] = _offer;
+
+        _emitOfferCreated(_offerId, _offer);
+    }
+
+    function _removeDust(
+        uint256 _amountLD,
+        address _tokenAddress
+    ) private view returns (uint64 amountSD, uint256 amountLD) {
+        uint256 decimalConversionRate = 10 ** (ERC20(_tokenAddress).decimals() - sharedDecimals);
+
+        amountSD = toSD(_amountLD, decimalConversionRate);
+        amountLD = toLD(amountSD, decimalConversionRate); // remove dust
+    }
+
     function _buildCreateOfferMsgAndOptions(
         bytes32 _offerId,
         Offer memory _offer
-    ) internal view virtual returns (bytes memory payload, bytes memory options) {
+    ) private view returns (bytes memory payload, bytes memory options) {
         bytes memory msgPayload = abi.encodePacked(
             _offerId,
             _offer.advertiser,
@@ -119,14 +124,15 @@ abstract contract OtcMarketCreateOffer is OtcMarketCore {
         payload = abi.encodePacked(Message.OfferCreated, msgPayload);
 
         options = enforcedOptions[_offer.dstEid][uint16(Message.OfferCreated)];
-        if (options.length == 0){
+        if (options.length == 0) {
             revert InvalidOptions(options);
         }
     }
 
-    function _receiveCreateOffer(bytes32 _offerId, Offer memory _offer) internal virtual override {
-        offers[_offerId] = _offer;
-
+    function _emitOfferCreated(       
+        bytes32 _offerId,
+        Offer memory _offer
+    ) private {
         emit OfferCreated(
             _offerId,
             _offer.advertiser,
