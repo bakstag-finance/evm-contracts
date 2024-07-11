@@ -14,6 +14,15 @@ interface IOtcMarket {
         OfferCanceled
     }
 
+    struct CreateOfferParams {
+        bytes32 beneficiary;
+        uint32 dstEid;
+        bytes32 srcTokenAddress;
+        bytes32 dstTokenAddress;
+        uint256 srcAmountLD;
+        uint64 exchangeRateSD;
+    }
+
     struct Offer {
         bytes32 advertiser;
         bytes32 beneficiary;
@@ -51,8 +60,8 @@ interface IOtcMarket {
         uint32 indexed dstEid,
         bytes32 srcTokenAddress,
         bytes32 dstTokenAddress,
-        uint128 srcAmount,
-        uint128 exchangeRate
+        uint64 srcAmount,
+        uint64 exchangeRate
     );
 
     /**
@@ -71,13 +80,7 @@ interface IOtcMarket {
      * @notice Function to create a new offer.
      */
     function createOffer(
-        bytes32 _beneficiary,
-        uint32 _dstEid,
-        bytes32 _srcTokenAddress,
-        bytes32 _dstTokenAddress,
-        uint256 _srcAmountLD,
-        uint64 _exchangeRateSD,
-        bytes calldata _extraOptions,
-        MessagingFee calldata _fee
+        CreateOfferParams calldata _params,
+        MessagingFee calldata _fee    
     ) external payable returns (MessagingReceipt memory msgReceipt, bytes32 newOfferId);
 }

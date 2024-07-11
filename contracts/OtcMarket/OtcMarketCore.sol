@@ -100,11 +100,41 @@ abstract contract OtcMarketCore is IOtcMarket, OApp, OAppOptionsType3 {
      */
     function _lzReceive(
         Origin calldata /*_origin*/,
-        bytes32 /*_guid*/,
+        bytes32 /*_guid */,
         bytes calldata _payload,
         address /*_executor*/,
         bytes calldata /*_extraData*/
     ) internal virtual override {
+        (Message msgType, bytes memory msgPayload) = abi.decode(_payload, (Message, bytes));
 
+        if (msgType == Message.OfferCreated) {
+            (
+                bytes32 offerId,
+                bytes32 advertiser,
+                bytes32 beneficiary,
+                uint32 srcEid,
+                uint32 dstEid,
+                bytes32 srcTokenAddress,
+                bytes32 dstTokenAddress,
+                uint64 srcAmountSD,
+                uint64 exchangeRateSD
+            ) = abi.decode(msgPayload, (bytes32, bytes32, bytes32, uint32, uint32, bytes32, bytes32, uint64, uint64));
+
+            _receiveCreateOffer(
+                offerId,
+                Offer(
+                    advertiser,
+                    beneficiary,
+                    srcEid,
+                    dstEid,
+                    srcTokenAddress,
+                    dstTokenAddress,
+                    srcAmountSD,
+                    exchangeRateSD
+                )
+            );
+        }
     }
+
+    function _receiveCreateOffer(bytes32 offerId, Offer memory offer) internal virtual;
 }
