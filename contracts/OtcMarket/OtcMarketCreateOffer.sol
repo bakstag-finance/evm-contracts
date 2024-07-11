@@ -31,7 +31,7 @@ abstract contract OtcMarketCreateOffer is OtcMarketCore {
             _params.dstTokenAddress,
             _params.exchangeRateSD
         );
-        if (offers[offerId].advertiser.length != 0) {
+        if (offers[offerId].srcAmountSD != 0) {
             revert OfferAlreadyExists(offerId);
         }
 

@@ -60,8 +60,8 @@ interface IOtcMarket {
         uint32 indexed dstEid,
         bytes32 srcTokenAddress,
         bytes32 dstTokenAddress,
-        uint64 srcAmount,
-        uint64 exchangeRate
+        uint64 srcAmountSD,
+        uint64 exchangeRateSD
     );
 
     /**
