@@ -16,7 +16,7 @@ abstract contract OtcMarketCore is IOtcMarket, OApp, OAppOptionsType3 {
     uint8 public constant sharedDecimals = 6;
     uint32 public immutable eid;
 
-    constructor(address _endpoint, address _delegate) OApp(_endpoint, _delegate) Ownable(_delegate) {
+    constructor(address _endpoint, address _delegate) OApp(_endpoint, _delegate) {
         eid = ILayerZeroEndpointV2(endpoint).eid();
     }
 
