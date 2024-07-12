@@ -7,7 +7,7 @@ import { OApp, MessagingFee, MessagingReceipt, Origin } from "@layerzerolabs/lz-
 import { ILayerZeroEndpointV2 } from "@layerzerolabs/lz-evm-protocol-v2/contracts/interfaces/ILayerZeroEndpointV2.sol";
 import { OAppOptionsType3, EnforcedOptionParam } from "@layerzerolabs/lz-evm-oapp-v2/contracts/oapp/libs/OAppOptionsType3.sol";
 
-import { IOtcMarket } from "./IOtcMarket.sol";
+import { IOtcMarket } from "../IOtcMarket.sol";
 
 /**
  * @dev See {IOtcMarket}.

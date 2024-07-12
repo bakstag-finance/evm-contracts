@@ -6,13 +6,13 @@ import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import { MessagingReceipt, MessagingFee } from "@layerzerolabs/lz-evm-oapp-v2/contracts/oapp/OApp.sol";
 
 import { OtcMarketCore } from "./OtcMarketCore.sol";
-import "./Utils.sol";
+import "../Utils.sol";
 
 /**
  * @dev Module of {OtcMarket} for offer creation.
  */
 abstract contract OtcMarketCreateOffer is OtcMarketCore {
-    modifier _checkPricing(uint256 _srcAmountLD, uint64 _exchangeRateSD) {
+    modifier _validatePricing(uint256 _srcAmountLD, uint64 _exchangeRateSD) {
         if (_srcAmountLD == 0 || _exchangeRateSD == 0) {
             revert InvalidPricing(_srcAmountLD, _exchangeRateSD);
         }
@@ -27,7 +27,7 @@ abstract contract OtcMarketCreateOffer is OtcMarketCore {
         payable
         virtual
         override
-        _checkPricing(_params.srcAmountLD, _params.exchangeRateSD)
+        _validatePricing(_params.srcAmountLD, _params.exchangeRateSD)
         returns (MessagingReceipt memory msgReceipt, bytes32 offerId)
     {
         address _advertiser = msg.sender;
@@ -80,7 +80,7 @@ abstract contract OtcMarketCreateOffer is OtcMarketCore {
         public
         payable
         virtual
-        _checkPricing(_params.srcAmountLD, _params.exchangeRateSD)
+        _validatePricing(_params.srcAmountLD, _params.exchangeRateSD)
         returns (MessagingFee memory fee)
     {
         (uint64 srcAmountSD, ) = _removeDust(_params.srcAmountLD, bytes32ToAddress(_params.srcTokenAddress));
