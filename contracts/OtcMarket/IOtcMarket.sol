@@ -23,6 +23,11 @@ interface IOtcMarket {
         uint64 exchangeRateSD;
     }
 
+    struct CreateOfferReceipt {
+        bytes32 offerId;
+        uint256 amountLD; // amount actually taken from the advertiser
+    }
+
     struct Offer {
         bytes32 advertiser;
         bytes32 beneficiary;
@@ -38,6 +43,8 @@ interface IOtcMarket {
      * @dev Invalid message order.
      */
     error InvalidNonce();
+
+    error InsufficientValue(uint256 required, uint256 supplied);
 
     /**
      * @dev Too small amount or exchange rate to create or accept offer.
@@ -74,5 +81,5 @@ interface IOtcMarket {
     function createOffer(
         CreateOfferParams calldata _params,
         MessagingFee calldata _fee
-    ) external payable returns (MessagingReceipt memory msgReceipt, bytes32 newOfferId);
+    ) external payable returns (MessagingReceipt memory msgReceipt, CreateOfferReceipt memory createOfferReceipt);
 }

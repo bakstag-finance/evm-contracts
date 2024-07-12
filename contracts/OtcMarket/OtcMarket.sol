@@ -5,5 +5,5 @@ import { OtcMarketCreateOffer } from "./modules/OtcMarketCreateOffer.sol";
 import { OtcMarketCore } from "./modules/OtcMarketCore.sol";
 
 abstract contract OtcMarket is OtcMarketCreateOffer {
-    constructor(address _endpoint, address _delegate) OtcMarketCore(_endpoint, _delegate) {}
+    constructor(address _escrow, address _endpoint, address _delegate) OtcMarketCore(_escrow, _endpoint, _delegate) {}
 }

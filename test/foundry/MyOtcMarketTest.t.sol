@@ -5,6 +5,7 @@ pragma solidity ^0.8.20;
 import { MyOtcMarket } from "../../contracts/OtcMarket/MyOtcMarket.sol";
 import { IOtcMarket } from "../../contracts/OtcMarket/IOtcMarket.sol";
 import { MyToken } from "../../contracts/MyToken.sol";
+import { Escrow } from "../../contracts/Escrow.sol";
 import "../../contracts/OtcMarket/Utils.sol";
 
 // OApp imports
@@ -36,6 +37,10 @@ contract MyOAppTest is TestHelperOz5 {
     MyOtcMarket private bOtcMarket;
     MyOtcMarket private cOtcMarket;
 
+    Escrow private aEscrow;
+    Escrow private bEscrow;
+    Escrow private cEscrow;
+
     MyToken private aToken;
     MyToken private bToken;
 
@@ -52,15 +57,13 @@ contract MyOAppTest is TestHelperOz5 {
         super.setUp();
         setUpEndpoints(3, LibraryType.UltraLightNode);
 
-        aOtcMarket = MyOtcMarket(
-            _deployOApp(type(MyOtcMarket).creationCode, abi.encode(address(endpoints[aEid]), address(this)))
-        );
-        bOtcMarket = MyOtcMarket(
-            _deployOApp(type(MyOtcMarket).creationCode, abi.encode(address(endpoints[bEid]), address(this)))
-        );
-        cOtcMarket = MyOtcMarket(
-            _deployOApp(type(MyOtcMarket).creationCode, abi.encode(address(endpoints[cEid]), address(this)))
-        );
+        aEscrow = new Escrow(address(this));
+        bEscrow = new Escrow(address(this));
+        cEscrow = new Escrow(address(this));
+
+        aOtcMarket = new MyOtcMarket(address(aEscrow), address(endpoints[aEid]), address(this));
+        bOtcMarket = new MyOtcMarket(address(bEscrow), address(endpoints[bEid]), address(this));
+        cOtcMarket = new MyOtcMarket(address(cEscrow), address(endpoints[cEid]), address(this));
 
         aToken = new MyToken(address(this));
         bToken = new MyToken(address(this));
@@ -124,7 +127,9 @@ contract MyOAppTest is TestHelperOz5 {
 
         // create an offer
         vm.prank(advertiser);
-        (, offerId) = aOtcMarket.createOffer{ value: fee.nativeFee }(params, fee);
+        (, IOtcMarket.CreateOfferReceipt memory receipt) = aOtcMarket.createOffer{ value: fee.nativeFee }(params, fee);
+
+        offerId = receipt.offerId;
     }
 
     function test_create_offer_success() public {
@@ -218,8 +223,12 @@ contract MyOAppTest is TestHelperOz5 {
             exchangeRateSD
         );
 
+        MessagingFee memory fee = aOtcMarket.quoteCreateOffer(addressToBytes32(advertiser), params, false);
+
+        // create an offer
+        vm.prank(advertiser);
         vm.expectRevert(abi.encodeWithSelector(IOtcMarket.InvalidPricing.selector, srcAmountLD, exchangeRateSD));
-        aOtcMarket.quoteCreateOffer(addressToBytes32(advertiser), params, false);
+        aOtcMarket.createOffer{ value: fee.nativeFee }(params, fee);
     }
 
     function test_create_offer_already_exists() public {
@@ -326,4 +335,8 @@ contract MyOAppTest is TestHelperOz5 {
             assertEq(bExchangeRateSD, exchangeRateSD, "exchangeRateSD");
         }
     }
+
+    function test_create_offer_insufficient_value() public {}
+
+    function test_create_offer_native() public {}
 }

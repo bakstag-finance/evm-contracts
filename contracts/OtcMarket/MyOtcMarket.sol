@@ -9,5 +9,9 @@ import { OtcMarket } from "./OtcMarket.sol";
  * @dev See {IOtcMarket}.
  */
 contract MyOtcMarket is OtcMarket {
-    constructor(address _endpoint, address _delegate) OtcMarket(_endpoint, _delegate) Ownable(_delegate) {}
+    constructor(
+        address _escrow,
+        address _endpoint,
+        address _delegate
+    ) OtcMarket(_escrow, _endpoint, _delegate) Ownable(_delegate) {}
 }

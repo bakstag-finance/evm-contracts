@@ -12,11 +12,14 @@ import "../Utils.sol";
  * @dev Module of {OtcMarket} for offer creation.
  */
 abstract contract OtcMarketCreateOffer is OtcMarketCore {
-    modifier _validatePricing(uint256 _srcAmountLD, uint64 _exchangeRateSD) {
+    function _validatePricing(address _srcTokenAddress, uint256 _srcAmountLD, uint64 _exchangeRateSD) private {
         if (_srcAmountLD == 0 || _exchangeRateSD == 0) {
             revert InvalidPricing(_srcAmountLD, _exchangeRateSD);
         }
-        _;
+
+        if (_srcTokenAddress == address(0) && _srcAmountLD > msg.value) {
+            revert InsufficientValue(_srcAmountLD, msg.value);
+        }
     }
 
     function createOffer(
@@ -27,21 +30,17 @@ abstract contract OtcMarketCreateOffer is OtcMarketCore {
         payable
         virtual
         override
-        _validatePricing(_params.srcAmountLD, _params.exchangeRateSD)
-        returns (MessagingReceipt memory msgReceipt, bytes32 offerId)
+        returns (MessagingReceipt memory msgReceipt, CreateOfferReceipt memory createOfferReceipt)
     {
-        address _advertiser = msg.sender;
-        bytes32 advertiser = addressToBytes32(_advertiser);
+        // TODO: return actual amountLD
 
-        if (_params.srcAmountLD == 0 || _params.exchangeRateSD == 0) {
-            revert InvalidPricing(_params.srcAmountLD, _params.exchangeRateSD);
-        }
-        (uint64 srcAmountSD, uint256 srcAmountLD) = _removeDust(
-            _params.srcAmountLD,
-            bytes32ToAddress(_params.srcTokenAddress)
-        );
+        bytes32 advertiser = addressToBytes32(msg.sender);
+        address srcTokenAddress = bytes32ToAddress(_params.srcTokenAddress);
 
-        offerId = hashOffer(
+        _validatePricing(srcTokenAddress, _params.srcAmountLD, _params.exchangeRateSD);
+        (uint64 srcAmountSD, uint256 srcAmountLD) = _removeDust(_params.srcAmountLD, srcTokenAddress);
+
+        bytes32 offerId = hashOffer(
             advertiser,
             eid,
             _params.dstEid,
@@ -63,26 +62,21 @@ abstract contract OtcMarketCreateOffer is OtcMarketCore {
             srcAmountSD,
             _params.exchangeRateSD
         );
-
         emit OfferCreated(offerId, offers[offerId]);
 
         (bytes memory payload, bytes memory options) = _buildCreateOfferMsgAndOptions(offerId, offers[offerId]);
-        msgReceipt = _lzSend(_params.dstEid, payload, options, _fee, payable(_advertiser));
+        msgReceipt = _lzSend(_params.dstEid, payload, options, _fee, payable(msg.sender));
 
-        ERC20(bytes32ToAddress(_params.srcTokenAddress)).transferFrom(_advertiser, address(this), srcAmountLD);
+        createOfferReceipt = CreateOfferReceipt(offerId, srcAmountLD);
+
+        transferFrom(srcTokenAddress, msg.sender, escrow, srcAmountLD);
     }
 
     function quoteCreateOffer(
         bytes32 _advertiser,
         CreateOfferParams calldata _params,
         bool _payInLzToken
-    )
-        public
-        payable
-        virtual
-        _validatePricing(_params.srcAmountLD, _params.exchangeRateSD)
-        returns (MessagingFee memory fee)
-    {
+    ) public view virtual returns (MessagingFee memory fee) {
         (uint64 srcAmountSD, ) = _removeDust(_params.srcAmountLD, bytes32ToAddress(_params.srcTokenAddress));
 
         bytes32 offerId = hashOffer(
@@ -150,7 +144,9 @@ abstract contract OtcMarketCreateOffer is OtcMarketCore {
         uint256 _amountLD,
         address _tokenAddress
     ) private view returns (uint64 amountSD, uint256 amountLD) {
-        uint256 decimalConversionRate = 10 ** (ERC20(_tokenAddress).decimals() - sharedDecimals);
+        uint256 decimalConversionRate = _tokenAddress == address(0)
+            ? 10 ** 12 // native
+            : 10 ** (ERC20(_tokenAddress).decimals() - sharedDecimals); // token
 
         amountSD = toSD(_amountLD, decimalConversionRate);
         amountLD = toLD(amountSD, decimalConversionRate); // remove dust
