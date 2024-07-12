@@ -12,14 +12,28 @@ import "./Utils.sol";
  * @dev Module of {OtcMarket} for offer creation.
  */
 abstract contract OtcMarketCreateOffer is OtcMarketCore {
+    modifier _checkPricing(uint256 _srcAmountLD, uint64 _exchangeRateSD) {
+        if (_srcAmountLD == 0 || _exchangeRateSD == 0) {
+            revert InvalidPricing(_srcAmountLD, _exchangeRateSD);
+        }
+        _;
+    }
+
     function createOffer(
         CreateOfferParams calldata _params,
         MessagingFee calldata _fee
-    ) public payable virtual override returns (MessagingReceipt memory msgReceipt, bytes32 offerId) {
+    )
+        public
+        payable
+        virtual
+        override
+        _checkPricing(_params.srcAmountLD, _params.exchangeRateSD)
+        returns (MessagingReceipt memory msgReceipt, bytes32 offerId)
+    {
         address _advertiser = msg.sender;
         bytes32 advertiser = addressToBytes32(_advertiser);
 
-        if (_params.srcAmountLD == 0) {
+        if (_params.srcAmountLD == 0 || _params.exchangeRateSD == 0) {
             revert InvalidPricing(_params.srcAmountLD, _params.exchangeRateSD);
         }
         (uint64 srcAmountSD, uint256 srcAmountLD) = _removeDust(
@@ -62,7 +76,13 @@ abstract contract OtcMarketCreateOffer is OtcMarketCore {
         bytes32 _advertiser,
         CreateOfferParams calldata _params,
         bool _payInLzToken
-    ) public payable virtual returns (MessagingFee memory fee) {
+    )
+        public
+        payable
+        virtual
+        _checkPricing(_params.srcAmountLD, _params.exchangeRateSD)
+        returns (MessagingFee memory fee)
+    {
         (uint64 srcAmountSD, ) = _removeDust(_params.srcAmountLD, bytes32ToAddress(_params.srcTokenAddress));
 
         bytes32 offerId = hashOffer(
