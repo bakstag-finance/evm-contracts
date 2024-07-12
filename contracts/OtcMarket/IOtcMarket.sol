@@ -35,12 +35,14 @@ interface IOtcMarket {
     }
 
     /**
-     * @dev Invalid message order. 
+     * @dev Invalid message order.
      */
     error InvalidNonce();
 
-    error InvalidLocalDecimals();
-
+    /**
+     * @dev Too small amount or exchange rate to create or accept offer.
+     */
+    error InvalidPricing(uint256 srcAmountLD, uint64 exchangeRateSD);
 
     /**
      * @dev Cannot create the same offer. You can top up the existing offer.
@@ -52,17 +54,7 @@ interface IOtcMarket {
      * - offer is created on source chain
      * - offer created message came to destination chain.
      */
-    event OfferCreated(
-        bytes32 offerId,
-        bytes32 indexed advertiser,
-        bytes32 beneficiary,
-        uint32 indexed srcEid,
-        uint32 indexed dstEid,
-        bytes32 srcTokenAddress,
-        bytes32 dstTokenAddress,
-        uint64 srcAmountSD,
-        uint64 exchangeRateSD
-    );
+    event OfferCreated(bytes32 indexed offerId, Offer offer);
 
     /**
      * @notice Hashing function used to (re)build the offer id from its params.
@@ -81,6 +73,6 @@ interface IOtcMarket {
      */
     function createOffer(
         CreateOfferParams calldata _params,
-        MessagingFee calldata _fee    
+        MessagingFee calldata _fee
     ) external payable returns (MessagingReceipt memory msgReceipt, bytes32 newOfferId);
 }

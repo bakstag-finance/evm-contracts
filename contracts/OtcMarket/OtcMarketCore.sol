@@ -86,6 +86,11 @@ abstract contract OtcMarketCore is IOtcMarket, OApp, OAppOptionsType3 {
         );
     }
 
+    function _decodePayload(bytes calldata _payload) private pure returns (Message msgType, bytes calldata msgPayload) {
+        msgType = Message(uint8(bytes1(_payload[:1])));
+        msgPayload = bytes(_payload[1:]);
+    }
+
     /**
      * @dev Internal function override to handle incoming messages from another chain.
      * @dev _origin A struct containing information about the message sender.
@@ -105,7 +110,7 @@ abstract contract OtcMarketCore is IOtcMarket, OApp, OAppOptionsType3 {
         address /*_executor*/,
         bytes calldata /*_extraData*/
     ) internal virtual override {
-        (Message msgType, bytes memory msgPayload) = abi.decode(_payload, (Message, bytes));
+        (Message msgType, bytes calldata msgPayload) = _decodePayload(_payload);
 
         if (msgType == Message.OfferCreated) {
             (
@@ -118,7 +123,7 @@ abstract contract OtcMarketCore is IOtcMarket, OApp, OAppOptionsType3 {
                 bytes32 dstTokenAddress,
                 uint64 srcAmountSD,
                 uint64 exchangeRateSD
-            ) = abi.decode(msgPayload, (bytes32, bytes32, bytes32, uint32, uint32, bytes32, bytes32, uint64, uint64));
+            ) = _decodeOfferCreated(msgPayload);
 
             _receiveCreateOffer(
                 offerId,
@@ -137,4 +142,21 @@ abstract contract OtcMarketCore is IOtcMarket, OApp, OAppOptionsType3 {
     }
 
     function _receiveCreateOffer(bytes32 offerId, Offer memory offer) internal virtual;
+    function _decodeOfferCreated(
+        bytes calldata _payload
+    )
+        internal
+        pure
+        virtual
+        returns (
+            bytes32 offerId,
+            bytes32 advertiser,
+            bytes32 beneficiary,
+            uint32 srcEid,
+            uint32 dstEid,
+            bytes32 srcTokenAddress,
+            bytes32 dstTokenAddress,
+            uint64 srcAmountSD,
+            uint64 exchangeRateSD
+        );
 }

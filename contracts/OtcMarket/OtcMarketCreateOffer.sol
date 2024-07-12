@@ -18,6 +18,10 @@ abstract contract OtcMarketCreateOffer is OtcMarketCore {
     ) public payable virtual override returns (MessagingReceipt memory msgReceipt, bytes32 offerId) {
         address _advertiser = msg.sender;
         bytes32 advertiser = addressToBytes32(_advertiser);
+
+        if (_params.srcAmountLD == 0) {
+            revert InvalidPricing(_params.srcAmountLD, _params.exchangeRateSD);
+        }
         (uint64 srcAmountSD, uint256 srcAmountLD) = _removeDust(
             _params.srcAmountLD,
             bytes32ToAddress(_params.srcTokenAddress)
@@ -46,7 +50,7 @@ abstract contract OtcMarketCreateOffer is OtcMarketCore {
             _params.exchangeRateSD
         );
 
-        _emitOfferCreated(offerId, offers[offerId]);
+        emit OfferCreated(offerId, offers[offerId]);
 
         (bytes memory payload, bytes memory options) = _buildCreateOfferMsgAndOptions(offerId, offers[offerId]);
         msgReceipt = _lzSend(_params.dstEid, payload, options, _fee, payable(_advertiser));
@@ -59,10 +63,7 @@ abstract contract OtcMarketCreateOffer is OtcMarketCore {
         CreateOfferParams calldata _params,
         bool _payInLzToken
     ) public payable virtual returns (MessagingFee memory fee) {
-        (uint64 srcAmountSD, ) = _removeDust(
-            _params.srcAmountLD,
-            bytes32ToAddress(_params.srcTokenAddress)
-        );
+        (uint64 srcAmountSD, ) = _removeDust(_params.srcAmountLD, bytes32ToAddress(_params.srcTokenAddress));
 
         bytes32 offerId = hashOffer(
             _advertiser,
@@ -93,7 +94,36 @@ abstract contract OtcMarketCreateOffer is OtcMarketCore {
     function _receiveCreateOffer(bytes32 _offerId, Offer memory _offer) internal virtual override {
         offers[_offerId] = _offer;
 
-        _emitOfferCreated(_offerId, _offer);
+        emit OfferCreated(_offerId, _offer);
+    }
+
+    function _decodeOfferCreated(
+        bytes calldata _payload
+    )
+        internal
+        pure
+        override
+        returns (
+            bytes32 offerId,
+            bytes32 advertiser,
+            bytes32 beneficiary,
+            uint32 srcEid,
+            uint32 dstEid,
+            bytes32 srcTokenAddress,
+            bytes32 dstTokenAddress,
+            uint64 srcAmountSD,
+            uint64 exchangeRateSD
+        )
+    {
+        offerId = bytes32(_payload[:32]);
+        advertiser = bytes32(_payload[32:64]);
+        beneficiary = bytes32(_payload[64:96]);
+        srcEid = uint32(bytes4(_payload[96:100]));
+        dstEid = uint32(bytes4(_payload[100:104]));
+        srcTokenAddress = bytes32(_payload[104:136]);
+        dstTokenAddress = bytes32(_payload[136:168]);
+        srcAmountSD = uint64(bytes8(_payload[168:176]));
+        exchangeRateSD = uint64(bytes8(_payload[176:184]));
     }
 
     function _removeDust(
@@ -127,22 +157,5 @@ abstract contract OtcMarketCreateOffer is OtcMarketCore {
         if (options.length == 0) {
             revert InvalidOptions(options);
         }
-    }
-
-    function _emitOfferCreated(       
-        bytes32 _offerId,
-        Offer memory _offer
-    ) private {
-        emit OfferCreated(
-            _offerId,
-            _offer.advertiser,
-            _offer.beneficiary,
-            _offer.srcEid,
-            _offer.dstEid,
-            _offer.srcTokenAddress,
-            _offer.dstTokenAddress,
-            _offer.srcAmountSD,
-            _offer.exchangeRateSD
-        );
     }
 }
