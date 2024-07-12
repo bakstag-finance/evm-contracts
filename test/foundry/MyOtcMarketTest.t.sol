@@ -17,6 +17,7 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Met
 
 // Forge imports
 import "forge-std/console.sol";
+import { Vm } from "forge-std/Vm.sol";
 
 // DevTools imports
 import { TestHelperOz5 } from "@layerzerolabs/test-devtools-evm-foundry/contracts/TestHelperOz5.sol";
@@ -63,10 +64,15 @@ contract MyOAppTest is TestHelperOz5 {
         aToken = new MyToken(address(this));
         bToken = new MyToken(address(this));
 
-        // address[] memory oapps = new address[](2);
-        // oapps[0] = address(aOApp);
-        // oapps[1] = address(bOApp);
-        // this.wireOApps(oapps);
+        // wire a with b
+        address[] memory oapps = new address[](2);
+        oapps[0] = address(aOtcMarket);
+        oapps[1] = address(bOtcMarket);
+        this.wireOApps(oapps);
+
+        // wire b with c
+        oapps[0] = address(cOtcMarket);
+        this.wireOApps(oapps);
     }
 
     function test_set_up() public {
@@ -79,81 +85,248 @@ contract MyOAppTest is TestHelperOz5 {
         assertEq(address(cOtcMarket.endpoint()), address(endpoints[cEid]));
     }
 
-    function test_create_offer_delivery() public {
-        uint256 amount = 1 ether;
-        uint64 exchangeRate = toSD(1 ether, 10 ** 12);
-        uint128 gas = 1500000;
-
-        // 1) introduce advertiser and beneficiary
+    function _create_offer(uint256 srcAmountLD, uint64 exchangeRateSD, uint128 gas) private returns (bytes32 offerId) {
+        // introduce advertiser and beneficiary
         address advertiser = makeAddr("seller");
         vm.deal(advertiser, 10 ether);
 
         address beneficiary = makeAddr("beneficiary");
 
-        bytes32 offerId = aOtcMarket.hashOffer(
-            addressToBytes32(advertiser),
-            aEid,
-            bEid,
-            addressToBytes32(address(aToken)),
-            addressToBytes32(address(bToken)),
-            exchangeRate
-        );
+        // set enforced options for a
+        bytes memory enforcedOptions = OptionsBuilder
+            .newOptions()
+            .addExecutorLzReceiveOption(gas, 0)
+            .addExecutorOrderedExecutionOption();
+        EnforcedOptionParam[] memory enforcedOptionsArray = new EnforcedOptionParam[](1);
+        enforcedOptionsArray[0] = EnforcedOptionParam(bEid, uint16(IOtcMarket.Message.OfferCreated), enforcedOptions);
 
-        uint64 srcAmountSD = toSD(amount, 10 ** ERC20(address(aToken)).decimals() - aOtcMarket.sharedDecimals());
+        aOtcMarket.setEnforcedOptions(enforcedOptionsArray);
 
-        bytes memory msgPayload = abi.encodePacked(
-            offerId,
-            addressToBytes32(advertiser),
+        // mint src token
+        aToken.mint(advertiser, srcAmountLD);
+
+        // approve aOtcMarket to spend src token
+        vm.prank(advertiser);
+        aToken.approve(address(aOtcMarket), srcAmountLD);
+
+        // quote fee
+        IOtcMarket.CreateOfferParams memory params = IOtcMarket.CreateOfferParams(
             addressToBytes32(beneficiary),
-            aEid,
             bEid,
             addressToBytes32(address(aToken)),
             addressToBytes32(address(bToken)),
-            srcAmountSD,
-            exchangeRate
+            srcAmountLD,
+            exchangeRateSD
         );
-        bytes memory payload = abi.encodePacked(IOtcMarket.Message.OfferCreated, msgPayload);
 
-        // // 2) wire oapps
-        // address[] memory oapps = new address[](2);
-        // oapps[0] = address(aOtcMarket);
-        // oapps[1] = address(bOtcMarket);
-        // this.wireOApps(oapps);
+        MessagingFee memory fee = aOtcMarket.quoteCreateOffer(addressToBytes32(advertiser), params, false);
 
-        // // 3) set enforced options for a
-        // bytes memory enforcedOptions = OptionsBuilder
-        //     .newOptions()
-        //     .addExecutorLzReceiveOption(gas, 0)
-        //     .addExecutorOrderedExecutionOption();
-        // EnforcedOptionParam[] memory enforcedOptionsArray = new EnforcedOptionParam[](1);
-        // enforcedOptionsArray[0] = EnforcedOptionParam(bEid, uint16(IOtcMarket.Message.OfferCreated), enforcedOptions);
+        // create an offer
+        vm.prank(advertiser);
+        (, offerId) = aOtcMarket.createOffer{ value: fee.nativeFee }(params, fee);
+    }
 
-        // aOtcMarket.setEnforcedOptions(enforcedOptionsArray);
+    function test_create_offer_success() public {
+        uint256 srcAmountLD = 1 ether;
+        uint64 exchangeRateSD = toSD(1 ether, 10 ** 12);
+        uint128 gas = 1500000;
 
-        // // 4) mint src token
-        // aToken.mint(advertiser, amount);
+        address advertiser = makeAddr("seller");
+        address beneficiary = makeAddr("beneficiary");
 
-        // // 5) approve aOtcMarket to spend src token
-        // vm.prank(advertiser);
-        // aToken.approve(address(aOtcMarket), amount);
+        uint64 srcAmountSD = toSD(srcAmountLD, 10 ** (ERC20(address(aToken)).decimals() - aOtcMarket.sharedDecimals()));
 
-        // // 6) quote fee
-        // IOtcMarket.CreateOfferParams memory params = IOtcMarket.CreateOfferParams(
-        //     addressToBytes32(beneficiary),
-        //     bEid,
-        //     addressToBytes32(address(aToken)),
-        //     addressToBytes32(address(bToken)),
-        //     amount,
-        //     exchangeRate
-        // );
+        // create an offer on aOtcMarket
+        vm.recordLogs();
+        bytes32 offerId = _create_offer(srcAmountLD, exchangeRateSD, gas);
 
-        // MessagingFee memory fee = aOtcMarket.quoteCreateOffer(addressToBytes32(advertiser), params, false);
+        // should emit OfferCreated
+        {
+            Vm.Log[] memory entries = vm.getRecordedLogs();
 
-        // // 7) create an offer
-        // vm.prank(advertiser);
-        // aOtcMarket.createOffer{ value: fee.nativeFee }(params, fee);
+            Vm.Log memory offerCreatedLog = entries[3];
 
-        // // 8) deliver OfferCreated message to bOtcMarket
-        // verifyPackets(bEid, addressToBytes32(address(bOtcMarket)));
+            // verify offerId is a topic
+            assertEq(offerCreatedLog.topics[1], offerId);
+
+            // assert data
+            IOtcMarket.Offer memory offer = abi.decode(offerCreatedLog.data, (IOtcMarket.Offer));
+
+            assertEq(offer.advertiser, addressToBytes32(advertiser), "advertiser");
+            assertEq(offer.beneficiary, addressToBytes32(beneficiary), "beneficiary");
+            assertEq(offer.srcEid, aEid, "srcEid");
+            assertEq(offer.dstEid, bEid, "dstEid");
+            assertEq(offer.srcTokenAddress, addressToBytes32(address(aToken)), "srcTokenAddress");
+            assertEq(offer.dstTokenAddress, addressToBytes32(address(bToken)), "dstTokenAddress");
+            assertEq(offer.srcAmountSD, srcAmountSD, "srcAmountSD");
+            assertEq(offer.exchangeRateSD, exchangeRateSD, "exchangeRateSD");
+        }
+
+        // should store offer
+        {
+            (
+                bytes32 aAdversiter,
+                bytes32 aBeneficiary,
+                uint32 aSrcEid,
+                uint32 aDstEid,
+                bytes32 aSrcTokenAddress,
+                bytes32 aDstTokenAddress,
+                uint64 aSrcAmountSD,
+                uint64 aExchangeRateSD
+            ) = aOtcMarket.offers(offerId);
+
+            assertEq(aAdversiter, addressToBytes32(advertiser), "advertiser");
+            assertEq(aBeneficiary, addressToBytes32(beneficiary), "beneficiary");
+            assertEq(aSrcEid, aEid, "srcEid");
+            assertEq(aDstEid, bEid, "dstEid");
+            assertEq(aSrcTokenAddress, addressToBytes32(address(aToken)), "srcTokenAddress");
+            assertEq(aDstTokenAddress, addressToBytes32(address(bToken)), "dstTokenAddress");
+            assertEq(aSrcAmountSD, srcAmountSD, "srcAmountSD");
+            assertEq(aExchangeRateSD, exchangeRateSD, "exchangeRateSD");
+        }
+    }
+
+    function test_create_offer_invalid_pricing() public {
+        uint256 srcAmountLD = 0;
+        uint64 exchangeRateSD = toSD(1 ether, 10 ** 12);
+        uint128 gas = 1500000;
+
+        // introduce advertiser and beneficiary
+        address advertiser = makeAddr("seller");
+        vm.deal(advertiser, 10 ether);
+
+        address beneficiary = makeAddr("beneficiary");
+
+        // set enforced options for a
+        bytes memory enforcedOptions = OptionsBuilder
+            .newOptions()
+            .addExecutorLzReceiveOption(gas, 0)
+            .addExecutorOrderedExecutionOption();
+        EnforcedOptionParam[] memory enforcedOptionsArray = new EnforcedOptionParam[](1);
+        enforcedOptionsArray[0] = EnforcedOptionParam(bEid, uint16(IOtcMarket.Message.OfferCreated), enforcedOptions);
+
+        aOtcMarket.setEnforcedOptions(enforcedOptionsArray);
+
+        // quote fee
+        IOtcMarket.CreateOfferParams memory params = IOtcMarket.CreateOfferParams(
+            addressToBytes32(beneficiary),
+            bEid,
+            addressToBytes32(address(aToken)),
+            addressToBytes32(address(bToken)),
+            srcAmountLD,
+            exchangeRateSD
+        );
+
+        MessagingFee memory fee = aOtcMarket.quoteCreateOffer(addressToBytes32(advertiser), params, false);
+
+        // create an offer
+        vm.prank(advertiser);
+        vm.expectRevert(abi.encodeWithSelector(IOtcMarket.InvalidPricing.selector, srcAmountLD, exchangeRateSD));
+        aOtcMarket.createOffer{ value: fee.nativeFee }(params, fee);
+    }
+
+    function test_create_offer_already_exists() public {
+        uint256 srcAmountLD = 1 ether;
+        uint64 exchangeRateSD = toSD(1 ether, 10 ** 12);
+        uint128 gas = 1500000;
+
+        // create an offer
+        bytes32 offerId = _create_offer(srcAmountLD, exchangeRateSD, gas);
+
+        // introduce advertiser and beneficiary
+        address advertiser = makeAddr("seller");
+        vm.deal(advertiser, 10 ether);
+
+        address beneficiary = makeAddr("beneficiary");
+
+        // set enforced options for a
+        bytes memory enforcedOptions = OptionsBuilder
+            .newOptions()
+            .addExecutorLzReceiveOption(gas, 0)
+            .addExecutorOrderedExecutionOption();
+        EnforcedOptionParam[] memory enforcedOptionsArray = new EnforcedOptionParam[](1);
+        enforcedOptionsArray[0] = EnforcedOptionParam(bEid, uint16(IOtcMarket.Message.OfferCreated), enforcedOptions);
+
+        aOtcMarket.setEnforcedOptions(enforcedOptionsArray);
+
+        // quote fee
+        IOtcMarket.CreateOfferParams memory params = IOtcMarket.CreateOfferParams(
+            addressToBytes32(beneficiary),
+            bEid,
+            addressToBytes32(address(aToken)),
+            addressToBytes32(address(bToken)),
+            srcAmountLD,
+            exchangeRateSD
+        );
+
+        MessagingFee memory fee = aOtcMarket.quoteCreateOffer(addressToBytes32(advertiser), params, false);
+
+        // try to create a dublicate offer
+        vm.prank(advertiser);
+        vm.expectRevert(abi.encodeWithSelector(IOtcMarket.OfferAlreadyExists.selector, offerId));
+        aOtcMarket.createOffer{ value: fee.nativeFee }(params, fee);
+    }
+
+    function test_receive_offer_created() public {
+        uint256 srcAmountLD = 1 ether;
+        uint64 exchangeRateSD = toSD(1 ether, 10 ** 12);
+        uint128 gas = 1500000;
+
+        address advertiser = makeAddr("seller");
+        address beneficiary = makeAddr("beneficiary");
+
+        uint64 srcAmountSD = toSD(srcAmountLD, 10 ** (ERC20(address(aToken)).decimals() - aOtcMarket.sharedDecimals()));
+
+        // create an offer on aOtcMarket
+        bytes32 offerId = _create_offer(srcAmountLD, exchangeRateSD, gas);
+
+        // deliver OfferCreated message to bOtcMarket
+        vm.recordLogs();
+        verifyPackets(bEid, addressToBytes32(address(bOtcMarket)));
+
+        // verify that OfferCreated event was emitted
+        {
+            Vm.Log[] memory entries = vm.getRecordedLogs();
+
+            Vm.Log memory offerCreatedLog = entries[2];
+
+            // verify offerId is a topic
+            assertEq(offerCreatedLog.topics[1], offerId);
+
+            // assert data
+            IOtcMarket.Offer memory offer = abi.decode(offerCreatedLog.data, (IOtcMarket.Offer));
+
+            assertEq(offer.advertiser, addressToBytes32(advertiser), "advertiser");
+            assertEq(offer.beneficiary, addressToBytes32(beneficiary), "beneficiary");
+            assertEq(offer.srcEid, aEid, "srcEid");
+            assertEq(offer.dstEid, bEid, "dstEid");
+            assertEq(offer.srcTokenAddress, addressToBytes32(address(aToken)), "srcTokenAddress");
+            assertEq(offer.dstTokenAddress, addressToBytes32(address(bToken)), "dstTokenAddress");
+            assertEq(offer.srcAmountSD, srcAmountSD, "srcAmountSD");
+            assertEq(offer.exchangeRateSD, exchangeRateSD, "exchangeRateSD");
+        }
+
+        // verify that offer was stored on bOtcMarket
+        {
+            (
+                bytes32 bAdversiter,
+                bytes32 bBeneficiary,
+                uint32 bSrcEid,
+                uint32 bDstEid,
+                bytes32 bSrcTokenAddress,
+                bytes32 bDstTokenAddress,
+                uint64 bSrcAmountSD,
+                uint64 bExchangeRateSD
+            ) = bOtcMarket.offers(offerId);
+
+            assertEq(bAdversiter, addressToBytes32(advertiser), "advertiser");
+            assertEq(bBeneficiary, addressToBytes32(beneficiary), "beneficiary");
+            assertEq(bSrcEid, aEid, "srcEid");
+            assertEq(bDstEid, bEid, "dstEid");
+            assertEq(bSrcTokenAddress, addressToBytes32(address(aToken)), "srcTokenAddress");
+            assertEq(bDstTokenAddress, addressToBytes32(address(bToken)), "dstTokenAddress");
+            assertEq(bSrcAmountSD, srcAmountSD, "srcAmountSD");
+            assertEq(bExchangeRateSD, exchangeRateSD, "exchangeRateSD");
+        }
     }
 }
