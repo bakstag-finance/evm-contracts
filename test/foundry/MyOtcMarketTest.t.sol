@@ -130,7 +130,7 @@ contract MyOAppTest is TestHelperOz5 {
     function test_create_offer_success() public {
         uint256 srcAmountLD = 1 ether;
         uint64 exchangeRateSD = toSD(1 ether, 10 ** 12);
-        uint128 gas = 1500000;
+        uint128 gas = 180000;
 
         address advertiser = makeAddr("seller");
         address beneficiary = makeAddr("beneficiary");
@@ -190,7 +190,7 @@ contract MyOAppTest is TestHelperOz5 {
     function test_create_offer_invalid_pricing() public {
         uint256 srcAmountLD = 0;
         uint64 exchangeRateSD = toSD(1 ether, 10 ** 12);
-        uint128 gas = 1500000;
+        uint128 gas = 180000;
 
         // introduce advertiser and beneficiary
         address advertiser = makeAddr("seller");
@@ -219,13 +219,13 @@ contract MyOAppTest is TestHelperOz5 {
         );
 
         vm.expectRevert(abi.encodeWithSelector(IOtcMarket.InvalidPricing.selector, srcAmountLD, exchangeRateSD));
-        MessagingFee memory fee = aOtcMarket.quoteCreateOffer(addressToBytes32(advertiser), params, false);
+        aOtcMarket.quoteCreateOffer(addressToBytes32(advertiser), params, false);
     }
 
     function test_create_offer_already_exists() public {
         uint256 srcAmountLD = 1 ether;
         uint64 exchangeRateSD = toSD(1 ether, 10 ** 12);
-        uint128 gas = 1500000;
+        uint128 gas = 180000;
 
         // create an offer
         bytes32 offerId = _create_offer(srcAmountLD, exchangeRateSD, gas);
@@ -267,7 +267,7 @@ contract MyOAppTest is TestHelperOz5 {
     function test_receive_offer_created() public {
         uint256 srcAmountLD = 1 ether;
         uint64 exchangeRateSD = toSD(1 ether, 10 ** 12);
-        uint128 gas = 1500000;
+        uint128 gas = 180000;
 
         address advertiser = makeAddr("seller");
         address beneficiary = makeAddr("beneficiary");
