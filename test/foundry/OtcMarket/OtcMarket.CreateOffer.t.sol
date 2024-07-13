@@ -1,34 +1,42 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-// OtcMarket imports
-import { IOtcMarket } from "../../../contracts/OtcMarket/IOtcMarket.sol";
-import { MyToken } from "../../../contracts/MyToken.sol";
-import { Escrow } from "../../../contracts/Escrow.sol";
-import "../../../contracts/OtcMarket/Utils.sol";
+// Forge imports
+import "forge-std/console.sol";
+import { Vm } from "forge-std/Vm.sol";
 
-// OApp imports
+// OZ imports
+import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+
+// LZ imports
 import { IOAppOptionsType3, EnforcedOptionParam } from "@layerzerolabs/lz-evm-oapp-v2/contracts/oapp/libs/OAppOptionsType3.sol";
 import { OptionsBuilder } from "@layerzerolabs/lz-evm-oapp-v2/contracts/oapp/libs/OptionsBuilder.sol";
 import { MessagingReceipt, MessagingFee } from "@layerzerolabs/lz-evm-oapp-v2/contracts/oapp/OApp.sol";
 import { IOAppCore } from "@layerzerolabs/lz-evm-oapp-v2/contracts/oapp/OAppCore.sol";
 
-// OZ imports
-import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-
-// Forge imports
-import "forge-std/console.sol";
-import { Vm } from "forge-std/Vm.sol";
-
+// BF imports
 import { OtcMarketTestHelper } from "./OtcMarketTestHelper.sol";
+
+// BF imports
+import { AmountCast } from "../../../contracts/protocol/libs/AmountCast.sol";
+
+// BF imports
+import { IOtcMarketCore } from "../../../contracts/protocol/interfaces/IOtcMarketCore.sol";
+import { IOtcMarketCreateOffer } from "../../../contracts/protocol/interfaces/IOtcMarketCreateOffer.sol";
+
+import { MyToken } from "../../../contracts/MyToken.sol";
+import { Escrow } from "../../../contracts/protocol/Escrow.sol";
 
 contract CreateOffer is OtcMarketTestHelper {
     using OptionsBuilder for bytes;
 
+    using AmountCast for uint256;
+    using AmountCast for uint64;
+
     function _create_offer(
         uint256 srcAmountLD,
         uint64 exchangeRateSD
-    ) private returns (IOtcMarket.CreateOfferReceipt memory receipt) {
+    ) private returns (IOtcMarketCreateOffer.CreateOfferReceipt memory receipt) {
         // introduce advertiser and beneficiary
         address advertiser = makeAddr("seller");
         vm.deal(advertiser, 10 ether);
@@ -41,7 +49,11 @@ contract CreateOffer is OtcMarketTestHelper {
             .addExecutorLzReceiveOption(GAS_CREATE_OFFER, 0)
             .addExecutorOrderedExecutionOption();
         EnforcedOptionParam[] memory enforcedOptionsArray = new EnforcedOptionParam[](1);
-        enforcedOptionsArray[0] = EnforcedOptionParam(bEid, uint16(IOtcMarket.Message.OfferCreated), enforcedOptions);
+        enforcedOptionsArray[0] = EnforcedOptionParam(
+            bEid,
+            uint16(IOtcMarketCore.Message.OfferCreated),
+            enforcedOptions
+        );
 
         aOtcMarket.setEnforcedOptions(enforcedOptionsArray);
 
@@ -53,7 +65,7 @@ contract CreateOffer is OtcMarketTestHelper {
         aToken.approve(address(aOtcMarket), srcAmountLD);
 
         // quote fee
-        IOtcMarket.CreateOfferParams memory params = IOtcMarket.CreateOfferParams(
+        IOtcMarketCreateOffer.CreateOfferParams memory params = IOtcMarketCreateOffer.CreateOfferParams(
             addressToBytes32(beneficiary),
             bEid,
             addressToBytes32(address(aToken)),
@@ -70,18 +82,18 @@ contract CreateOffer is OtcMarketTestHelper {
     }
 
     function testFuzz_EmitOfferCreated(uint256 srcAmountLD, uint64 exchangeRateSD) public {
-        uint256 srcDecimalConversionRate = 10 ** (ERC20(address(aToken)).decimals() - aOtcMarket.sharedDecimals());
+        uint256 srcDecimalConversionRate = 10 ** (ERC20(address(aToken)).decimals() - aOtcMarket.SHARED_DECIMALS());
 
         vm.assume(srcAmountLD >= srcDecimalConversionRate && srcAmountLD <= type(uint64).max && exchangeRateSD > 0);
 
         address advertiser = makeAddr("seller");
         address beneficiary = makeAddr("beneficiary");
 
-        uint64 srcAmountSD = toSD(srcAmountLD, srcDecimalConversionRate);
+        uint64 srcAmountSD = srcAmountLD.toSD(srcDecimalConversionRate);
 
         // should emit OfferCreated
         vm.recordLogs();
-        IOtcMarket.CreateOfferReceipt memory receipt = _create_offer(srcAmountLD, exchangeRateSD);
+        IOtcMarketCreateOffer.CreateOfferReceipt memory receipt = _create_offer(srcAmountLD, exchangeRateSD);
 
         Vm.Log[] memory entries = vm.getRecordedLogs();
 
@@ -91,7 +103,7 @@ contract CreateOffer is OtcMarketTestHelper {
         assertEq(offerCreatedLog.topics[1], receipt.offerId);
 
         // assert data
-        IOtcMarket.Offer memory offer = abi.decode(offerCreatedLog.data, (IOtcMarket.Offer));
+        IOtcMarketCore.Offer memory offer = abi.decode(offerCreatedLog.data, (IOtcMarketCore.Offer));
 
         assertEq(offer.advertiser, addressToBytes32(advertiser), "advertiser");
         assertEq(offer.beneficiary, addressToBytes32(beneficiary), "beneficiary");
@@ -104,17 +116,17 @@ contract CreateOffer is OtcMarketTestHelper {
     }
 
     function testFuzz_StoreOffer(uint256 srcAmountLD, uint64 exchangeRateSD) public {
-        uint256 srcDecimalConversionRate = 10 ** (ERC20(address(aToken)).decimals() - aOtcMarket.sharedDecimals());
+        uint256 srcDecimalConversionRate = 10 ** (ERC20(address(aToken)).decimals() - aOtcMarket.SHARED_DECIMALS());
 
         vm.assume(srcAmountLD >= srcDecimalConversionRate && srcAmountLD <= type(uint64).max && exchangeRateSD > 0);
 
         address advertiser = makeAddr("seller");
         address beneficiary = makeAddr("beneficiary");
 
-        uint64 srcAmountSD = toSD(srcAmountLD, srcDecimalConversionRate);
+        uint64 srcAmountSD = srcAmountLD.toSD(srcDecimalConversionRate);
 
         // should store offer
-        IOtcMarket.CreateOfferReceipt memory receipt = _create_offer(srcAmountLD, exchangeRateSD);
+        IOtcMarketCreateOffer.CreateOfferReceipt memory receipt = _create_offer(srcAmountLD, exchangeRateSD);
 
         (
             bytes32 aAdversiter,
@@ -138,7 +150,7 @@ contract CreateOffer is OtcMarketTestHelper {
     }
 
     function testFuzz_UpdateBalances(uint256 srcAmountLD, uint64 exchangeRateSD) public {
-        uint256 srcDecimalConversionRate = 10 ** (ERC20(address(aToken)).decimals() - aOtcMarket.sharedDecimals());
+        uint256 srcDecimalConversionRate = 10 ** (ERC20(address(aToken)).decimals() - aOtcMarket.SHARED_DECIMALS());
 
         vm.assume(srcAmountLD >= srcDecimalConversionRate && srcAmountLD <= type(uint64).max && exchangeRateSD > 0);
 
@@ -148,7 +160,7 @@ contract CreateOffer is OtcMarketTestHelper {
         uint256 advertiserInitialBalance = srcAmountLD;
         uint256 escrowInitialBalance = ERC20(address(aToken)).balanceOf(address(aEscrow));
 
-        IOtcMarket.CreateOfferReceipt memory receipt = _create_offer(srcAmountLD, exchangeRateSD);
+        IOtcMarketCreateOffer.CreateOfferReceipt memory receipt = _create_offer(srcAmountLD, exchangeRateSD);
 
         uint256 advertiserUpdatedBalance = ERC20(address(aToken)).balanceOf(advertiser);
         uint256 escrowUpdatedBalance = ERC20(address(aToken)).balanceOf(address(aEscrow));
@@ -159,7 +171,7 @@ contract CreateOffer is OtcMarketTestHelper {
 
     function test_RevertOn_InvalidPricing() public {
         uint256 srcAmountLD = 1 ether;
-        uint64 exchangeRateSD = toSD(1 ether, 10 ** 12);
+        uint64 exchangeRateSD = 10 ** 6;
 
         // introduce advertiser and beneficiary
         address advertiser = makeAddr("seller");
@@ -173,14 +185,18 @@ contract CreateOffer is OtcMarketTestHelper {
             .addExecutorLzReceiveOption(GAS_CREATE_OFFER, 0)
             .addExecutorOrderedExecutionOption();
         EnforcedOptionParam[] memory enforcedOptionsArray = new EnforcedOptionParam[](1);
-        enforcedOptionsArray[0] = EnforcedOptionParam(bEid, uint16(IOtcMarket.Message.OfferCreated), enforcedOptions);
+        enforcedOptionsArray[0] = EnforcedOptionParam(
+            bEid,
+            uint16(IOtcMarketCore.Message.OfferCreated),
+            enforcedOptions
+        );
 
         aOtcMarket.setEnforcedOptions(enforcedOptionsArray);
 
         // invalid source amount
         {
             // quote fee
-            IOtcMarket.CreateOfferParams memory params = IOtcMarket.CreateOfferParams(
+            IOtcMarketCreateOffer.CreateOfferParams memory params = IOtcMarketCreateOffer.CreateOfferParams(
                 addressToBytes32(beneficiary),
                 bEid,
                 addressToBytes32(address(aToken)),
@@ -193,14 +209,14 @@ contract CreateOffer is OtcMarketTestHelper {
 
             // create an offer
             vm.prank(advertiser);
-            vm.expectRevert(abi.encodeWithSelector(IOtcMarket.InvalidPricing.selector, 0, exchangeRateSD));
+            vm.expectRevert(abi.encodeWithSelector(IOtcMarketCreateOffer.InvalidPricing.selector, 0, exchangeRateSD));
             aOtcMarket.createOffer{ value: fee.nativeFee }(params, fee);
         }
 
         // invalid exchange rate
         {
             // quote fee
-            IOtcMarket.CreateOfferParams memory params = IOtcMarket.CreateOfferParams(
+            IOtcMarketCreateOffer.CreateOfferParams memory params = IOtcMarketCreateOffer.CreateOfferParams(
                 addressToBytes32(beneficiary),
                 bEid,
                 addressToBytes32(address(aToken)),
@@ -213,17 +229,17 @@ contract CreateOffer is OtcMarketTestHelper {
 
             // create an offer
             vm.prank(advertiser);
-            vm.expectRevert(abi.encodeWithSelector(IOtcMarket.InvalidPricing.selector, srcAmountLD, 0));
+            vm.expectRevert(abi.encodeWithSelector(IOtcMarketCreateOffer.InvalidPricing.selector, srcAmountLD, 0));
             aOtcMarket.createOffer{ value: fee.nativeFee }(params, fee);
         }
     }
 
     function test_RevertIf_OfferAlreadyExists() public {
         uint256 srcAmountLD = 1 ether;
-        uint64 exchangeRateSD = toSD(1 ether, 10 ** 12);
+        uint64 exchangeRateSD = 10 ** 6;
 
         // create an offer
-        IOtcMarket.CreateOfferReceipt memory receipt = _create_offer(srcAmountLD, exchangeRateSD);
+        IOtcMarketCreateOffer.CreateOfferReceipt memory receipt = _create_offer(srcAmountLD, exchangeRateSD);
 
         // introduce advertiser and beneficiary
         address advertiser = makeAddr("seller");
@@ -237,12 +253,16 @@ contract CreateOffer is OtcMarketTestHelper {
             .addExecutorLzReceiveOption(GAS_CREATE_OFFER, 0)
             .addExecutorOrderedExecutionOption();
         EnforcedOptionParam[] memory enforcedOptionsArray = new EnforcedOptionParam[](1);
-        enforcedOptionsArray[0] = EnforcedOptionParam(bEid, uint16(IOtcMarket.Message.OfferCreated), enforcedOptions);
+        enforcedOptionsArray[0] = EnforcedOptionParam(
+            bEid,
+            uint16(IOtcMarketCore.Message.OfferCreated),
+            enforcedOptions
+        );
 
         aOtcMarket.setEnforcedOptions(enforcedOptionsArray);
 
         // quote fee
-        IOtcMarket.CreateOfferParams memory params = IOtcMarket.CreateOfferParams(
+        IOtcMarketCreateOffer.CreateOfferParams memory params = IOtcMarketCreateOffer.CreateOfferParams(
             addressToBytes32(beneficiary),
             bEid,
             addressToBytes32(address(aToken)),
@@ -255,22 +275,22 @@ contract CreateOffer is OtcMarketTestHelper {
 
         // try to create a dublicate offer
         vm.prank(advertiser);
-        vm.expectRevert(abi.encodeWithSelector(IOtcMarket.OfferAlreadyExists.selector, receipt.offerId));
+        vm.expectRevert(abi.encodeWithSelector(IOtcMarketCreateOffer.OfferAlreadyExists.selector, receipt.offerId));
         aOtcMarket.createOffer{ value: fee.nativeFee }(params, fee);
     }
 
     function test_ReceiveOfferCreated(uint256 srcAmountLD, uint64 exchangeRateSD) public {
-        uint256 srcDecimalConversionRate = 10 ** (ERC20(address(aToken)).decimals() - aOtcMarket.sharedDecimals());
+        uint256 srcDecimalConversionRate = 10 ** (ERC20(address(aToken)).decimals() - aOtcMarket.SHARED_DECIMALS());
 
         vm.assume(srcAmountLD >= srcDecimalConversionRate && srcAmountLD <= type(uint64).max && exchangeRateSD > 0);
 
         address advertiser = makeAddr("seller");
         address beneficiary = makeAddr("beneficiary");
 
-        uint64 srcAmountSD = toSD(srcAmountLD, srcDecimalConversionRate);
+        uint64 srcAmountSD = srcAmountLD.toSD(srcDecimalConversionRate);
 
         // create an offer on aOtcMarket
-        IOtcMarket.CreateOfferReceipt memory receipt = _create_offer(srcAmountLD, exchangeRateSD);
+        IOtcMarketCreateOffer.CreateOfferReceipt memory receipt = _create_offer(srcAmountLD, exchangeRateSD);
 
         // deliver OfferCreated message to bOtcMarket
         vm.recordLogs();
@@ -286,7 +306,7 @@ contract CreateOffer is OtcMarketTestHelper {
             assertEq(offerCreatedLog.topics[1], receipt.offerId);
 
             // assert data
-            IOtcMarket.Offer memory offer = abi.decode(offerCreatedLog.data, (IOtcMarket.Offer));
+            IOtcMarketCore.Offer memory offer = abi.decode(offerCreatedLog.data, (IOtcMarketCore.Offer));
 
             assertEq(offer.advertiser, addressToBytes32(advertiser), "advertiser");
             assertEq(offer.beneficiary, addressToBytes32(beneficiary), "beneficiary");
@@ -324,7 +344,7 @@ contract CreateOffer is OtcMarketTestHelper {
 
     function test_RevertOn_InsufficientValue() public {
         uint256 srcAmountLD = 1 ether;
-        uint64 exchangeRateSD = toSD(1 ether, 10 ** 12);
+        uint64 exchangeRateSD = 10 ** 6;
 
         // introduce advertiser and beneficiary
         address advertiser = makeAddr("seller");
@@ -338,12 +358,16 @@ contract CreateOffer is OtcMarketTestHelper {
             .addExecutorLzReceiveOption(GAS_CREATE_OFFER, 0)
             .addExecutorOrderedExecutionOption();
         EnforcedOptionParam[] memory enforcedOptionsArray = new EnforcedOptionParam[](1);
-        enforcedOptionsArray[0] = EnforcedOptionParam(bEid, uint16(IOtcMarket.Message.OfferCreated), enforcedOptions);
+        enforcedOptionsArray[0] = EnforcedOptionParam(
+            bEid,
+            uint16(IOtcMarketCore.Message.OfferCreated),
+            enforcedOptions
+        );
 
         aOtcMarket.setEnforcedOptions(enforcedOptionsArray);
 
         // quote fee
-        IOtcMarket.CreateOfferParams memory params = IOtcMarket.CreateOfferParams(
+        IOtcMarketCreateOffer.CreateOfferParams memory params = IOtcMarketCreateOffer.CreateOfferParams(
             addressToBytes32(beneficiary),
             bEid,
             addressToBytes32(address(0)),
@@ -380,12 +404,16 @@ contract CreateOffer is OtcMarketTestHelper {
             .addExecutorLzReceiveOption(GAS_CREATE_OFFER, 0)
             .addExecutorOrderedExecutionOption();
         EnforcedOptionParam[] memory enforcedOptionsArray = new EnforcedOptionParam[](1);
-        enforcedOptionsArray[0] = EnforcedOptionParam(bEid, uint16(IOtcMarket.Message.OfferCreated), enforcedOptions);
+        enforcedOptionsArray[0] = EnforcedOptionParam(
+            bEid,
+            uint16(IOtcMarketCore.Message.OfferCreated),
+            enforcedOptions
+        );
 
         aOtcMarket.setEnforcedOptions(enforcedOptionsArray);
 
         // quote fee
-        IOtcMarket.CreateOfferParams memory params = IOtcMarket.CreateOfferParams(
+        IOtcMarketCreateOffer.CreateOfferParams memory params = IOtcMarketCreateOffer.CreateOfferParams(
             addressToBytes32(beneficiary),
             bEid,
             addressToBytes32(address(0)),
@@ -401,10 +429,9 @@ contract CreateOffer is OtcMarketTestHelper {
 
         // create an offer
         vm.prank(advertiser);
-        (, IOtcMarket.CreateOfferReceipt memory receipt) = aOtcMarket.createOffer{ value: fee.nativeFee + srcAmountLD }(
-            params,
-            fee
-        );
+        (, IOtcMarketCreateOffer.CreateOfferReceipt memory receipt) = aOtcMarket.createOffer{
+            value: fee.nativeFee + srcAmountLD
+        }(params, fee);
         uint256 amountLD = receipt.amountLD;
 
         // should reduce advertiser balance

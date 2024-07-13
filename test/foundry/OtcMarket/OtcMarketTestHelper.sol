@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-// OtcMarket imports
-import { MyOtcMarket } from "../../../contracts/OtcMarket/MyOtcMarket.sol";
-import { MyToken } from "../../../contracts/MyToken.sol";
-import { Escrow } from "../../../contracts/Escrow.sol";
-
 // DevTools imports
 import { TestHelperOz5 } from "@layerzerolabs/test-devtools-evm-foundry/contracts/TestHelperOz5.sol";
+
+// OtcMarket imports
+import { MyOtcMarket } from "../../../contracts/protocol/MyOtcMarket.sol";
+import { MyToken } from "../../../contracts/MyToken.sol";
+import { Escrow } from "../../../contracts/protocol/Escrow.sol";
 
 contract OtcMarketTestHelper is TestHelperOz5 {
     uint32 public aEid = 1;
