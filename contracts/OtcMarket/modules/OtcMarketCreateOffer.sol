@@ -67,7 +67,7 @@ abstract contract OtcMarketCreateOffer is OtcMarketCore {
 
         createOfferReceipt = CreateOfferReceipt(offerId, srcAmountLD);
 
-        transferFrom(srcTokenAddress, msg.sender, escrow, srcAmountLD);
+        transferFrom(srcTokenAddress, msg.sender, address(escrow), srcAmountLD);
     }
 
     function quoteCreateOffer(

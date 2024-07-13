@@ -25,7 +25,10 @@ import { OtcMarketTestHelper } from "./OtcMarketTestHelper.sol";
 contract CreateOffer is OtcMarketTestHelper {
     using OptionsBuilder for bytes;
 
-    function _create_offer(uint256 srcAmountLD, uint64 exchangeRateSD) private returns (bytes32 offerId) {
+    function _create_offer(
+        uint256 srcAmountLD,
+        uint64 exchangeRateSD
+    ) private returns (IOtcMarket.CreateOfferReceipt memory receipt) {
         // introduce advertiser and beneficiary
         address advertiser = makeAddr("seller");
         vm.deal(advertiser, 10 ether);
@@ -63,12 +66,10 @@ contract CreateOffer is OtcMarketTestHelper {
 
         // create an offer
         vm.prank(advertiser);
-        (, IOtcMarket.CreateOfferReceipt memory receipt) = aOtcMarket.createOffer{ value: fee.nativeFee }(params, fee);
-
-        offerId = receipt.offerId;
+        (, receipt) = aOtcMarket.createOffer{ value: fee.nativeFee }(params, fee);
     }
 
-    function testFuzz_Success(uint256 srcAmountLD, uint64 exchangeRateSD) public {
+    function testFuzz_EmitOfferCreated(uint256 srcAmountLD, uint64 exchangeRateSD) public {
         uint256 srcDecimalConversionRate = 10 ** (ERC20(address(aToken)).decimals() - aOtcMarket.sharedDecimals());
 
         vm.assume(srcAmountLD >= srcDecimalConversionRate && srcAmountLD <= type(uint64).max && exchangeRateSD > 0);
@@ -78,54 +79,82 @@ contract CreateOffer is OtcMarketTestHelper {
 
         uint64 srcAmountSD = toSD(srcAmountLD, srcDecimalConversionRate);
 
-        // create an offer on aOtcMarket
-        vm.recordLogs();
-        bytes32 offerId = _create_offer(srcAmountLD, exchangeRateSD);
-
         // should emit OfferCreated
-        {
-            Vm.Log[] memory entries = vm.getRecordedLogs();
+        vm.recordLogs();
+        IOtcMarket.CreateOfferReceipt memory receipt = _create_offer(srcAmountLD, exchangeRateSD);
 
-            Vm.Log memory offerCreatedLog = entries[3];
+        Vm.Log[] memory entries = vm.getRecordedLogs();
 
-            // verify offerId is a topic
-            assertEq(offerCreatedLog.topics[1], offerId);
+        Vm.Log memory offerCreatedLog = entries[3];
 
-            // assert data
-            IOtcMarket.Offer memory offer = abi.decode(offerCreatedLog.data, (IOtcMarket.Offer));
+        // verify offerId is a topic
+        assertEq(offerCreatedLog.topics[1], receipt.offerId);
 
-            assertEq(offer.advertiser, addressToBytes32(advertiser), "advertiser");
-            assertEq(offer.beneficiary, addressToBytes32(beneficiary), "beneficiary");
-            assertEq(offer.srcEid, aEid, "srcEid");
-            assertEq(offer.dstEid, bEid, "dstEid");
-            assertEq(offer.srcTokenAddress, addressToBytes32(address(aToken)), "srcTokenAddress");
-            assertEq(offer.dstTokenAddress, addressToBytes32(address(bToken)), "dstTokenAddress");
-            assertEq(offer.srcAmountSD, srcAmountSD, "srcAmountSD");
-            assertEq(offer.exchangeRateSD, exchangeRateSD, "exchangeRateSD");
-        }
+        // assert data
+        IOtcMarket.Offer memory offer = abi.decode(offerCreatedLog.data, (IOtcMarket.Offer));
+
+        assertEq(offer.advertiser, addressToBytes32(advertiser), "advertiser");
+        assertEq(offer.beneficiary, addressToBytes32(beneficiary), "beneficiary");
+        assertEq(offer.srcEid, aEid, "srcEid");
+        assertEq(offer.dstEid, bEid, "dstEid");
+        assertEq(offer.srcTokenAddress, addressToBytes32(address(aToken)), "srcTokenAddress");
+        assertEq(offer.dstTokenAddress, addressToBytes32(address(bToken)), "dstTokenAddress");
+        assertEq(offer.srcAmountSD, srcAmountSD, "srcAmountSD");
+        assertEq(offer.exchangeRateSD, exchangeRateSD, "exchangeRateSD");
+    }
+
+    function testFuzz_StoreOffer(uint256 srcAmountLD, uint64 exchangeRateSD) public {
+        uint256 srcDecimalConversionRate = 10 ** (ERC20(address(aToken)).decimals() - aOtcMarket.sharedDecimals());
+
+        vm.assume(srcAmountLD >= srcDecimalConversionRate && srcAmountLD <= type(uint64).max && exchangeRateSD > 0);
+
+        address advertiser = makeAddr("seller");
+        address beneficiary = makeAddr("beneficiary");
+
+        uint64 srcAmountSD = toSD(srcAmountLD, srcDecimalConversionRate);
 
         // should store offer
-        {
-            (
-                bytes32 aAdversiter,
-                bytes32 aBeneficiary,
-                uint32 aSrcEid,
-                uint32 aDstEid,
-                bytes32 aSrcTokenAddress,
-                bytes32 aDstTokenAddress,
-                uint64 aSrcAmountSD,
-                uint64 aExchangeRateSD
-            ) = aOtcMarket.offers(offerId);
+        IOtcMarket.CreateOfferReceipt memory receipt = _create_offer(srcAmountLD, exchangeRateSD);
 
-            assertEq(aAdversiter, addressToBytes32(advertiser), "advertiser");
-            assertEq(aBeneficiary, addressToBytes32(beneficiary), "beneficiary");
-            assertEq(aSrcEid, aEid, "srcEid");
-            assertEq(aDstEid, bEid, "dstEid");
-            assertEq(aSrcTokenAddress, addressToBytes32(address(aToken)), "srcTokenAddress");
-            assertEq(aDstTokenAddress, addressToBytes32(address(bToken)), "dstTokenAddress");
-            assertEq(aSrcAmountSD, srcAmountSD, "srcAmountSD");
-            assertEq(aExchangeRateSD, exchangeRateSD, "exchangeRateSD");
-        }
+        (
+            bytes32 aAdversiter,
+            bytes32 aBeneficiary,
+            uint32 aSrcEid,
+            uint32 aDstEid,
+            bytes32 aSrcTokenAddress,
+            bytes32 aDstTokenAddress,
+            uint64 aSrcAmountSD,
+            uint64 aExchangeRateSD
+        ) = aOtcMarket.offers(receipt.offerId);
+
+        assertEq(aAdversiter, addressToBytes32(advertiser), "advertiser");
+        assertEq(aBeneficiary, addressToBytes32(beneficiary), "beneficiary");
+        assertEq(aSrcEid, aEid, "srcEid");
+        assertEq(aDstEid, bEid, "dstEid");
+        assertEq(aSrcTokenAddress, addressToBytes32(address(aToken)), "srcTokenAddress");
+        assertEq(aDstTokenAddress, addressToBytes32(address(bToken)), "dstTokenAddress");
+        assertEq(aSrcAmountSD, srcAmountSD, "srcAmountSD");
+        assertEq(aExchangeRateSD, exchangeRateSD, "exchangeRateSD");
+    }
+
+    function testFuzz_UpdateBalances(uint256 srcAmountLD, uint64 exchangeRateSD) public {
+        uint256 srcDecimalConversionRate = 10 ** (ERC20(address(aToken)).decimals() - aOtcMarket.sharedDecimals());
+
+        vm.assume(srcAmountLD >= srcDecimalConversionRate && srcAmountLD <= type(uint64).max && exchangeRateSD > 0);
+
+        address advertiser = makeAddr("seller");
+
+        // should update balances
+        uint256 advertiserInitialBalance = srcAmountLD;
+        uint256 escrowInitialBalance = ERC20(address(aToken)).balanceOf(address(aEscrow));
+
+        IOtcMarket.CreateOfferReceipt memory receipt = _create_offer(srcAmountLD, exchangeRateSD);
+
+        uint256 advertiserUpdatedBalance = ERC20(address(aToken)).balanceOf(advertiser);
+        uint256 escrowUpdatedBalance = ERC20(address(aToken)).balanceOf(address(aEscrow));
+
+        assertEq(advertiserUpdatedBalance, advertiserInitialBalance - receipt.amountLD, "advertiser balance");
+        assertEq(escrowUpdatedBalance, escrowInitialBalance + receipt.amountLD, "escrow balance");
     }
 
     function test_RevertOn_InvalidPricing() public {
@@ -194,7 +223,7 @@ contract CreateOffer is OtcMarketTestHelper {
         uint64 exchangeRateSD = toSD(1 ether, 10 ** 12);
 
         // create an offer
-        bytes32 offerId = _create_offer(srcAmountLD, exchangeRateSD);
+        IOtcMarket.CreateOfferReceipt memory receipt = _create_offer(srcAmountLD, exchangeRateSD);
 
         // introduce advertiser and beneficiary
         address advertiser = makeAddr("seller");
@@ -226,7 +255,7 @@ contract CreateOffer is OtcMarketTestHelper {
 
         // try to create a dublicate offer
         vm.prank(advertiser);
-        vm.expectRevert(abi.encodeWithSelector(IOtcMarket.OfferAlreadyExists.selector, offerId));
+        vm.expectRevert(abi.encodeWithSelector(IOtcMarket.OfferAlreadyExists.selector, receipt.offerId));
         aOtcMarket.createOffer{ value: fee.nativeFee }(params, fee);
     }
 
@@ -241,7 +270,7 @@ contract CreateOffer is OtcMarketTestHelper {
         uint64 srcAmountSD = toSD(srcAmountLD, srcDecimalConversionRate);
 
         // create an offer on aOtcMarket
-        bytes32 offerId = _create_offer(srcAmountLD, exchangeRateSD);
+        IOtcMarket.CreateOfferReceipt memory receipt = _create_offer(srcAmountLD, exchangeRateSD);
 
         // deliver OfferCreated message to bOtcMarket
         vm.recordLogs();
@@ -254,7 +283,7 @@ contract CreateOffer is OtcMarketTestHelper {
             Vm.Log memory offerCreatedLog = entries[2];
 
             // verify offerId is a topic
-            assertEq(offerCreatedLog.topics[1], offerId);
+            assertEq(offerCreatedLog.topics[1], receipt.offerId);
 
             // assert data
             IOtcMarket.Offer memory offer = abi.decode(offerCreatedLog.data, (IOtcMarket.Offer));
@@ -280,7 +309,7 @@ contract CreateOffer is OtcMarketTestHelper {
                 bytes32 bDstTokenAddress,
                 uint64 bSrcAmountSD,
                 uint64 bExchangeRateSD
-            ) = bOtcMarket.offers(offerId);
+            ) = bOtcMarket.offers(receipt.offerId);
 
             assertEq(bAdversiter, addressToBytes32(advertiser), "advertiser");
             assertEq(bBeneficiary, addressToBytes32(beneficiary), "beneficiary");
