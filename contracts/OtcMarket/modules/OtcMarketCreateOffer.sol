@@ -32,13 +32,11 @@ abstract contract OtcMarketCreateOffer is OtcMarketCore {
         override
         returns (MessagingReceipt memory msgReceipt, CreateOfferReceipt memory createOfferReceipt)
     {
-        // TODO: return actual amountLD
-
         bytes32 advertiser = addressToBytes32(msg.sender);
         address srcTokenAddress = bytes32ToAddress(_params.srcTokenAddress);
 
-        _validatePricing(srcTokenAddress, _params.srcAmountLD, _params.exchangeRateSD);
         (uint64 srcAmountSD, uint256 srcAmountLD) = _removeDust(_params.srcAmountLD, srcTokenAddress);
+        _validatePricing(srcTokenAddress, srcAmountLD, _params.exchangeRateSD);
 
         bytes32 offerId = hashOffer(
             advertiser,

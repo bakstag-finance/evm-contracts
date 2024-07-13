@@ -2,12 +2,14 @@
 pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
-import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { Transfer } from "@layerzerolabs/lz-evm-protocol-v2/contracts/libs/Transfer.sol";
 
 contract Escrow is Ownable {
     constructor(address _initialOwner) Ownable(_initialOwner) {}
 
-    function transfer(address _token, address _to, uint256 _amount) public onlyOwner {
-        IERC20(_token).transfer(_to, _amount);
+    function transfer(address _token, address _to, uint256 _value) public onlyOwner {
+        Transfer.nativeOrToken(_token, _to, _value);
     }
+
+    receive() external payable {}
 }

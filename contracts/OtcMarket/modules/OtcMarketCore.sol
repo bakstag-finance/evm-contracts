@@ -93,6 +93,11 @@ abstract contract OtcMarketCore is IOtcMarket, OApp, OAppOptionsType3 {
         msgPayload = bytes(_payload[1:]);
     }
 
+    function _payNative(uint256 _nativeFee) internal virtual override returns (uint256 nativeFee) {
+        if (msg.value < _nativeFee) revert NotEnoughNative(msg.value);
+        return _nativeFee;
+    }
+
     /**
      * @dev Internal function override to handle incoming messages from another chain.
      * @dev _origin A struct containing information about the message sender.
