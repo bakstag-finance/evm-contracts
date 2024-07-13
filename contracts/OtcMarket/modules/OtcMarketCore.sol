@@ -1,13 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
-
-import { OApp, MessagingFee, MessagingReceipt, Origin } from "@layerzerolabs/lz-evm-oapp-v2/contracts/oapp/OApp.sol";
+import { OApp, MessagingFee, Origin } from "@layerzerolabs/lz-evm-oapp-v2/contracts/oapp/OApp.sol";
 import { ILayerZeroEndpointV2 } from "@layerzerolabs/lz-evm-protocol-v2/contracts/interfaces/ILayerZeroEndpointV2.sol";
-import { OAppOptionsType3, EnforcedOptionParam } from "@layerzerolabs/lz-evm-oapp-v2/contracts/oapp/libs/OAppOptionsType3.sol";
+import { OAppOptionsType3 } from "@layerzerolabs/lz-evm-oapp-v2/contracts/oapp/libs/OAppOptionsType3.sol";
 
 import { IOtcMarket } from "../IOtcMarket.sol";
+import { Escrow } from "../../Escrow.sol";
 
 /**
  * @dev See {IOtcMarket}.
@@ -15,11 +14,11 @@ import { IOtcMarket } from "../IOtcMarket.sol";
 abstract contract OtcMarketCore is IOtcMarket, OApp, OAppOptionsType3 {
     uint8 public constant sharedDecimals = 6;
     uint32 public immutable eid;
-    address public immutable escrow;
+    Escrow public immutable escrow;
 
     constructor(address _escrow, address _endpoint, address _delegate) OApp(_endpoint, _delegate) {
         eid = ILayerZeroEndpointV2(endpoint).eid();
-        escrow = _escrow;
+        escrow = Escrow(payable(_escrow));
     }
 
     mapping(bytes32 offerId => Offer) public offers;
