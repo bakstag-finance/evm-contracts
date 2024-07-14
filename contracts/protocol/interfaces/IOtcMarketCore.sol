@@ -31,8 +31,8 @@ interface IOtcMarketCore {
      * @dev Offer parameters.
      */
     struct Offer {
-        bytes32 advertiser;
-        bytes32 beneficiary;
+        bytes32 srcSellerAddress;
+        bytes32 dstSellerAddress;
         uint32 srcEid;
         uint32 dstEid;
         bytes32 srcTokenAddress;
@@ -43,7 +43,7 @@ interface IOtcMarketCore {
 
     /**
      * @notice Hashing function used to (re)build the offer ID from its params.
-     * @param _advertiser The advertiser.
+     * @param _srcSellerAddress The advertiser.
      * @param _srcEid The source Endoint ID.
      * @param _dstEid The destination Endoint ID.
      * @param _srcTokenAddress The source token address.
@@ -52,7 +52,7 @@ interface IOtcMarketCore {
      * @return offerId The unique global identifier of the created offer.
      */
     function hashOffer(
-        bytes32 _advertiser,
+        bytes32 _srcSellerAddress,
         uint32 _srcEid,
         uint32 _dstEid,
         bytes32 _srcTokenAddress,

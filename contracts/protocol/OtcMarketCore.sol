@@ -14,6 +14,7 @@ import { Escrow } from "./Escrow.sol";
  * @dev See {IOtcMarket}.
  */
 abstract contract OtcMarketCore is IOtcMarket, OApp, OAppOptionsType3 {
+    uint8 public constant FEE = 100; // 1/100 = 1%
     uint8 public constant SHARED_DECIMALS = 6;
     uint32 public immutable eid;
     Escrow public immutable escrow;

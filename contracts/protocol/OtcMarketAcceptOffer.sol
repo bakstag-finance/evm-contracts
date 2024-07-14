@@ -9,7 +9,6 @@ import { Transfer } from "./libs/Transfer.sol";
 import { AmountCast } from "./libs/AmountCast.sol";
 
 import { OtcMarketCore } from "./OtcMarketCore.sol";
-import { Escrow } from "./Escrow.sol";
 
 /**
  * @dev Module of {OtcMarket} for offer acceptance.
@@ -71,7 +70,7 @@ abstract contract OtcMarketAcceptOffer is OtcMarketCore {
         Transfer.transferFrom(
             dstTokenAddress,
             msg.sender,
-            offer.beneficiary.toAddress(),
+            offer.dstSellerAddress.toAddress(),
             acceptOfferReceipt.dstAmountLD
         );
     }
@@ -101,7 +100,7 @@ abstract contract OtcMarketAcceptOffer is OtcMarketCore {
             uint256(_exchangeRateSD) *
             _getDecimalConversionRate(_tokenAddress)) / (10 ** SHARED_DECIMALS);
 
-        uint256 feeLD = dstAmountLD / 100;
+        uint256 feeLD = dstAmountLD / FEE;
 
         acceptOfferReceipt = AcceptOfferReceipt(dstAmountLD, feeLD);
     }

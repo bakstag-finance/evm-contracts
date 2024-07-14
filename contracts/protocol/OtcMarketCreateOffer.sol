@@ -32,12 +32,17 @@ abstract contract OtcMarketCreateOffer is OtcMarketCore {
         override
         returns (MessagingReceipt memory msgReceipt, CreateOfferReceipt memory createOfferReceipt)
     {
-        // TODO: include dstDecimalsConversionRate in _params and limit srcAmount and exchangeRate
         bytes32 srcSellerAddress = msg.sender.toBytes32();
         address srcTokenAddress = _params.srcTokenAddress.toAddress();
 
         (uint64 srcAmountSD, uint256 srcAmountLD) = _removeDust(_params.srcAmountLD, srcTokenAddress);
-        _validatePricing(srcTokenAddress, srcAmountLD, _params.exchangeRateSD);
+        _validatePricing(
+            srcTokenAddress,
+            srcAmountSD,
+            srcAmountLD,
+            _params.exchangeRateSD,
+            _params.dstDecimalConversionRate
+        );
 
         bytes32 offerId = hashOffer(
             srcSellerAddress,
@@ -71,13 +76,17 @@ abstract contract OtcMarketCreateOffer is OtcMarketCore {
         Transfer.transferFrom(srcTokenAddress, msg.sender, address(escrow), srcAmountLD);
     }
 
-    function _validatePricing(address _srcTokenAddress, uint256 _srcAmountLD, uint64 _exchangeRateSD) internal virtual {
-        if (_srcAmountLD == 0) {
-            revert InsufficientAmount(1, _srcAmountLD);
-        }
-
-        if (_exchangeRateSD == 0) {
-            revert InsufficientExchangeRate(1, _exchangeRateSD);
+    function _validatePricing(
+        address _srcTokenAddress,
+        uint64 _srcAmountSD,
+        uint256 _srcAmountLD,
+        uint64 _exchangeRateSD,
+        uint256 _dstDecimalConversionRate
+    ) internal virtual {
+        if (
+            uint256(_srcAmountSD) * uint256(_exchangeRateSD) * _dstDecimalConversionRate < FEE * 10 ** SHARED_DECIMALS
+        ) {
+            revert InsufficientPricing(_srcAmountSD, _exchangeRateSD, _dstDecimalConversionRate);
         }
 
         if (_srcTokenAddress == address(0) && _srcAmountLD > msg.value) {
@@ -138,8 +147,8 @@ abstract contract OtcMarketCreateOffer is OtcMarketCore {
     ) internal view virtual returns (bytes memory payload, bytes memory options) {
         bytes memory msgPayload = abi.encodePacked(
             _offerId,
-            _offer.advertiser,
-            _offer.beneficiary,
+            _offer.srcSellerAddress,
+            _offer.dstSellerAddress,
             _offer.srcEid,
             _offer.dstEid,
             _offer.srcTokenAddress,
@@ -163,8 +172,8 @@ abstract contract OtcMarketCreateOffer is OtcMarketCore {
         virtual
         returns (
             bytes32 offerId,
-            bytes32 advertiser,
-            bytes32 beneficiary,
+            bytes32 srcSellerAddress,
+            bytes32 dstSellerAddress,
             uint32 srcEid,
             uint32 dstEid,
             bytes32 srcTokenAddress,
@@ -174,8 +183,8 @@ abstract contract OtcMarketCreateOffer is OtcMarketCore {
         )
     {
         offerId = _payload.toB32(0);
-        advertiser = _payload.toB32(32);
-        beneficiary = _payload.toB32(64);
+        srcSellerAddress = _payload.toB32(32);
+        dstSellerAddress = _payload.toB32(64);
         srcEid = _payload.toU32(96);
         dstEid = _payload.toU32(100);
         srcTokenAddress = _payload.toB32(104);
@@ -187,8 +196,8 @@ abstract contract OtcMarketCreateOffer is OtcMarketCore {
     function _receiveOfferCreated(bytes calldata _msgPayload) internal virtual override {
         (
             bytes32 offerId,
-            bytes32 advertiser,
-            bytes32 beneficiary,
+            bytes32 srcSellerAddress,
+            bytes32 dstSellerAddress,
             uint32 srcEid,
             uint32 dstEid,
             bytes32 srcTokenAddress,
@@ -198,8 +207,8 @@ abstract contract OtcMarketCreateOffer is OtcMarketCore {
         ) = _decodeOfferCreated(_msgPayload);
 
         Offer memory _offer = Offer(
-            advertiser,
-            beneficiary,
+            srcSellerAddress,
+            dstSellerAddress,
             srcEid,
             dstEid,
             srcTokenAddress,

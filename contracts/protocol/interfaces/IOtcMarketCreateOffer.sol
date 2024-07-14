@@ -24,13 +24,14 @@ interface IOtcMarketCreateOffer is IOtcMarketCore {
      */
     struct CreateOfferReceipt {
         bytes32 offerId;
-        uint256 srcAmountLD; // amount actually taken from the advertiser
+        uint256 srcAmountLD; // amount actually taken from the seller
     }
 
     /**
-     * @dev Too small exchange rate.
+     * @dev The product _srcAmountSD * _exchangeRateSD * dstDecimalConversionRate is smaller
+     * than the minimumPricing to accept the offer.
      */
-    error InsufficientExchangeRate(uint64 minExchangeRateSD, uint64 providedExchangeRateSD);
+    error InsufficientPricing(uint64 srcAmountSD, uint64 exchangeRateSD, uint256 dstDecimalConversionRate);
 
     /**
      * @dev Cannot recreate the same offer. Top up or cancel the existing offer.
@@ -46,7 +47,7 @@ interface IOtcMarketCreateOffer is IOtcMarketCore {
 
     /**
      * @notice Provides a quote for the createOffer() operation.
-     * @param _advertiser The address of the advertiser.
+     * @param _srcSellerAddress The address of the seller on source chain.
      * @param _params The parameters for the createOffer() operation.
      * @param _payInLzToken Flag indicating whether the caller is paying in the LZ token.
      * @return fee The calculated LayerZero messaging fee from the send() operation.
@@ -58,10 +59,10 @@ interface IOtcMarketCreateOffer is IOtcMarketCore {
      *
      * @dev CreateOfferReceipt: BF OtcMarket create offer receipt
      *  - offerId: The unique global identifier of the created offer.
-     *  - amountLD: The amount actually taken from the advertiser.
+     *  - amountLD: The amount actually taken from the seller.
      */
     function quoteCreateOffer(
-        bytes32 _advertiser,
+        bytes32 _srcSellerAddress,
         CreateOfferParams calldata _params,
         bool _payInLzToken
     ) external view returns (MessagingFee memory fee, CreateOfferReceipt memory createOfferReceipt);
@@ -82,7 +83,7 @@ interface IOtcMarketCreateOffer is IOtcMarketCore {
      *
      * @dev CreateOfferReceipt: BF OtcMarket create offer receipt
      *  - offerId: The unique global identifier of the created offer.
-     *  - amountLD: The amount actually taken from the advertiser.
+     *  - amountLD: The amount actually taken from the seller.
      */
     function createOffer(
         CreateOfferParams calldata _params,
