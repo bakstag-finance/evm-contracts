@@ -74,7 +74,7 @@ contract CreateOffer is OtcMarketTestHelper {
             exchangeRateSD
         );
 
-        MessagingFee memory fee = aOtcMarket.quoteCreateOffer(addressToBytes32(advertiser), params, false);
+        (MessagingFee memory fee, ) = aOtcMarket.quoteCreateOffer(addressToBytes32(advertiser), params, false);
 
         // create an offer
         vm.prank(advertiser);
@@ -165,8 +165,8 @@ contract CreateOffer is OtcMarketTestHelper {
         uint256 advertiserUpdatedBalance = ERC20(address(aToken)).balanceOf(advertiser);
         uint256 escrowUpdatedBalance = ERC20(address(aToken)).balanceOf(address(aEscrow));
 
-        assertEq(advertiserUpdatedBalance, advertiserInitialBalance - receipt.amountLD, "advertiser balance");
-        assertEq(escrowUpdatedBalance, escrowInitialBalance + receipt.amountLD, "escrow balance");
+        assertEq(advertiserUpdatedBalance, advertiserInitialBalance - receipt.srcAmountLD, "advertiser balance");
+        assertEq(escrowUpdatedBalance, escrowInitialBalance + receipt.srcAmountLD, "escrow balance");
     }
 
     function test_RevertOn_InvalidPricing() public {
@@ -205,11 +205,11 @@ contract CreateOffer is OtcMarketTestHelper {
                 exchangeRateSD
             );
 
-            MessagingFee memory fee = aOtcMarket.quoteCreateOffer(addressToBytes32(advertiser), params, false);
+            (MessagingFee memory fee, ) = aOtcMarket.quoteCreateOffer(addressToBytes32(advertiser), params, false);
 
             // create an offer
             vm.prank(advertiser);
-            vm.expectRevert(abi.encodeWithSelector(IOtcMarketCreateOffer.InvalidPricing.selector, 0, exchangeRateSD));
+            vm.expectRevert(abi.encodeWithSelector(IOtcMarketCore.InsufficientAmount.selector, 1, 0));
             aOtcMarket.createOffer{ value: fee.nativeFee }(params, fee);
         }
 
@@ -225,11 +225,11 @@ contract CreateOffer is OtcMarketTestHelper {
                 0
             );
 
-            MessagingFee memory fee = aOtcMarket.quoteCreateOffer(addressToBytes32(advertiser), params, false);
+            (MessagingFee memory fee, ) = aOtcMarket.quoteCreateOffer(addressToBytes32(advertiser), params, false);
 
             // create an offer
             vm.prank(advertiser);
-            vm.expectRevert(abi.encodeWithSelector(IOtcMarketCreateOffer.InvalidPricing.selector, srcAmountLD, 0));
+            vm.expectRevert(abi.encodeWithSelector(IOtcMarketCreateOffer.InsufficientExchangeRate.selector, 1, 0));
             aOtcMarket.createOffer{ value: fee.nativeFee }(params, fee);
         }
     }
@@ -271,7 +271,7 @@ contract CreateOffer is OtcMarketTestHelper {
             exchangeRateSD
         );
 
-        MessagingFee memory fee = aOtcMarket.quoteCreateOffer(addressToBytes32(advertiser), params, false);
+        (MessagingFee memory fee, ) = aOtcMarket.quoteCreateOffer(addressToBytes32(advertiser), params, false);
 
         // try to create a dublicate offer
         vm.prank(advertiser);
@@ -376,7 +376,7 @@ contract CreateOffer is OtcMarketTestHelper {
             exchangeRateSD
         );
 
-        MessagingFee memory fee = aOtcMarket.quoteCreateOffer(addressToBytes32(advertiser), params, false);
+        (MessagingFee memory fee, ) = aOtcMarket.quoteCreateOffer(addressToBytes32(advertiser), params, false);
 
         // enough only for srcAmountLD
         vm.prank(advertiser);
@@ -422,7 +422,7 @@ contract CreateOffer is OtcMarketTestHelper {
             exchangeRateSD
         );
 
-        MessagingFee memory fee = aOtcMarket.quoteCreateOffer(addressToBytes32(advertiser), params, false);
+        (MessagingFee memory fee, ) = aOtcMarket.quoteCreateOffer(addressToBytes32(advertiser), params, false);
 
         uint256 escrowInitialBalance = address(aEscrow).balance;
         uint256 advertiserInitialBalance = advertiser.balance;
@@ -432,7 +432,7 @@ contract CreateOffer is OtcMarketTestHelper {
         (, IOtcMarketCreateOffer.CreateOfferReceipt memory receipt) = aOtcMarket.createOffer{
             value: fee.nativeFee + srcAmountLD
         }(params, fee);
-        uint256 amountLD = receipt.amountLD;
+        uint256 amountLD = receipt.srcAmountLD;
 
         // should reduce advertiser balance
         // (compare up to 1 percent because the gas for the function call is not taken into consideration)

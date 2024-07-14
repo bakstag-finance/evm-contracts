@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-
 import { MessagingReceipt, MessagingFee } from "@layerzerolabs/lz-evm-oapp-v2/contracts/oapp/OApp.sol";
 import { AddressCast } from "@layerzerolabs/lz-evm-protocol-v2/contracts/libs/AddressCast.sol";
 import { CalldataBytesLib } from "@layerzerolabs/lz-evm-protocol-v2/contracts/libs/CalldataBytesLib.sol";
@@ -34,6 +32,7 @@ abstract contract OtcMarketCreateOffer is OtcMarketCore {
         override
         returns (MessagingReceipt memory msgReceipt, CreateOfferReceipt memory createOfferReceipt)
     {
+        // TODO: include dstDecimalsConversionRate in _params and limit srcAmount and exchangeRate
         bytes32 advertiser = msg.sender.toBytes32();
         address srcTokenAddress = _params.srcTokenAddress.toAddress();
 
@@ -73,8 +72,12 @@ abstract contract OtcMarketCreateOffer is OtcMarketCore {
     }
 
     function _validatePricing(address _srcTokenAddress, uint256 _srcAmountLD, uint64 _exchangeRateSD) internal virtual {
-        if (_srcAmountLD == 0 || _exchangeRateSD == 0) {
-            revert InvalidPricing(_srcAmountLD, _exchangeRateSD);
+        if (_srcAmountLD == 0) {
+            revert InsufficientAmount(1, _srcAmountLD);
+        }
+
+        if (_exchangeRateSD == 0) {
+            revert InsufficientExchangeRate(1, _exchangeRateSD);
         }
 
         if (_srcTokenAddress == address(0) && _srcAmountLD > msg.value) {
@@ -86,8 +89,12 @@ abstract contract OtcMarketCreateOffer is OtcMarketCore {
         bytes32 _advertiser,
         CreateOfferParams calldata _params,
         bool _payInLzToken
-    ) public view virtual override returns (MessagingFee memory fee) {
-        (uint64 srcAmountSD, ) = _removeDust(_params.srcAmountLD, _params.srcTokenAddress.toAddress());
+    ) public view virtual override returns (MessagingFee memory fee, CreateOfferReceipt memory createOfferReceipt) {
+        // TODO: shall revert?
+        (uint64 srcAmountSD, uint256 srcAmountLD) = _removeDust(
+            _params.srcAmountLD,
+            _params.srcTokenAddress.toAddress()
+        );
 
         bytes32 offerId = hashOffer(
             _advertiser,
@@ -113,17 +120,17 @@ abstract contract OtcMarketCreateOffer is OtcMarketCore {
         );
 
         fee = _quote(_params.dstEid, payload, options, _payInLzToken);
+        createOfferReceipt = CreateOfferReceipt(offerId, srcAmountLD);
     }
 
     function _removeDust(
         uint256 _amountLD,
         address _tokenAddress
     ) private view returns (uint64 amountSD, uint256 amountLD) {
-        uint256 decimalConversionRate = _tokenAddress == address(0)
-            ? 10 ** 12 // native
-            : 10 ** (ERC20(_tokenAddress).decimals() - SHARED_DECIMALS); // token
+        uint256 srcDecimalConversionRate = _getDecimalConversionRate(_tokenAddress);
 
-        (amountSD, amountLD) = AmountCast.removeDust(_amountLD, decimalConversionRate);
+        amountSD = _amountLD.toSD(srcDecimalConversionRate);
+        amountLD = amountSD.toLD(srcDecimalConversionRate);
     }
 
     function _buildCreateOfferMsgAndOptions(
@@ -155,7 +162,6 @@ abstract contract OtcMarketCreateOffer is OtcMarketCore {
         internal
         pure
         virtual
-        override
         returns (
             bytes32 offerId,
             bytes32 advertiser,
@@ -179,9 +185,31 @@ abstract contract OtcMarketCreateOffer is OtcMarketCore {
         exchangeRateSD = _payload.toU64(176);
     }
 
-    function _receiveCreateOffer(bytes32 _offerId, Offer memory _offer) internal virtual override {
-        offers[_offerId] = _offer;
+    function _receiveOfferCreated(bytes calldata _msgPayload) internal virtual override {
+        (
+            bytes32 offerId,
+            bytes32 advertiser,
+            bytes32 beneficiary,
+            uint32 srcEid,
+            uint32 dstEid,
+            bytes32 srcTokenAddress,
+            bytes32 dstTokenAddress,
+            uint64 srcAmountSD,
+            uint64 exchangeRateSD
+        ) = _decodeOfferCreated(_msgPayload);
 
-        emit OfferCreated(_offerId, _offer);
+        Offer memory _offer = Offer(
+            advertiser,
+            beneficiary,
+            srcEid,
+            dstEid,
+            srcTokenAddress,
+            dstTokenAddress,
+            srcAmountSD,
+            exchangeRateSD
+        );
+
+        offers[offerId] = _offer;
+        emit OfferCreated(offerId, _offer);
     }
 }

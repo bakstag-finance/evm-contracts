@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
+import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+
 import { OApp, Origin } from "@layerzerolabs/lz-evm-oapp-v2/contracts/oapp/OApp.sol";
 import { ILayerZeroEndpointV2 } from "@layerzerolabs/lz-evm-protocol-v2/contracts/interfaces/ILayerZeroEndpointV2.sol";
 import { OAppOptionsType3 } from "@layerzerolabs/lz-evm-oapp-v2/contracts/oapp/libs/OAppOptionsType3.sol";
@@ -60,6 +62,15 @@ abstract contract OtcMarketCore is IOtcMarket, OApp, OAppOptionsType3 {
         );
     }
 
+    function _getDecimalConversionRate(
+        address _tokenAddress
+    ) internal view virtual returns (uint256 decimalConversionRate) {
+        // TODO: revert if decimals < SHARED_DECIMALS ?
+        decimalConversionRate = _tokenAddress == address(0)
+            ? 10 ** 12 // native
+            : 10 ** (ERC20(_tokenAddress).decimals() - SHARED_DECIMALS); // token
+    }
+
     function _lzReceive(
         Origin calldata /*_origin*/,
         bytes32 /*_guid */,
@@ -70,32 +81,8 @@ abstract contract OtcMarketCore is IOtcMarket, OApp, OAppOptionsType3 {
         (Message msgType, bytes calldata msgPayload) = _decodePayload(_payload);
 
         if (msgType == Message.OfferCreated) {
-            (
-                bytes32 offerId,
-                bytes32 advertiser,
-                bytes32 beneficiary,
-                uint32 srcEid,
-                uint32 dstEid,
-                bytes32 srcTokenAddress,
-                bytes32 dstTokenAddress,
-                uint64 srcAmountSD,
-                uint64 exchangeRateSD
-            ) = _decodeOfferCreated(msgPayload);
-
-            _receiveCreateOffer(
-                offerId,
-                Offer(
-                    advertiser,
-                    beneficiary,
-                    srcEid,
-                    dstEid,
-                    srcTokenAddress,
-                    dstTokenAddress,
-                    srcAmountSD,
-                    exchangeRateSD
-                )
-            );
-        }
+            _receiveOfferCreated(msgPayload);
+        } else if (msgType == Message.OfferAccepted) {}
     }
 
     function _decodePayload(
@@ -105,22 +92,7 @@ abstract contract OtcMarketCore is IOtcMarket, OApp, OAppOptionsType3 {
         msgPayload = bytes(_payload[1:]);
     }
 
-    function _decodeOfferCreated(
-        bytes calldata _payload
-    )
-        internal
-        pure
-        virtual
-        returns (
-            bytes32 offerId,
-            bytes32 advertiser,
-            bytes32 beneficiary,
-            uint32 srcEid,
-            uint32 dstEid,
-            bytes32 srcTokenAddress,
-            bytes32 dstTokenAddress,
-            uint64 srcAmountSD,
-            uint64 exchangeRateSD
-        );
-    function _receiveCreateOffer(bytes32 offerId, Offer memory offer) internal virtual;
+    function _receiveOfferCreated(bytes calldata _msgPayload) internal virtual;
+
+    function _receiveOfferAccepted(bytes calldata _msgPayload) internal virtual;
 }

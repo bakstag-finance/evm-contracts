@@ -18,6 +18,16 @@ interface IOtcMarketCore {
     error InvalidNonce();
 
     /**
+     * @dev Too small amount to create or accept offer. Amount can be expressed either in LD or SD.
+     */
+    error InsufficientAmount(uint256 minumum, uint256 provided);
+
+    /**
+     * @dev Supplied value is smaller than required. Value can be expressed either in LD or SD.
+     */
+    error InsufficientValue(uint256 required, uint256 supplied);
+
+    /**
      * @dev Offer parameters.
      */
     struct Offer {
