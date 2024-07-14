@@ -10,12 +10,13 @@ interface IOtcMarketCreateOffer is IOtcMarketCore {
      * @dev Parameters required to create an offer.
      */
     struct CreateOfferParams {
-        bytes32 beneficiary;
+        bytes32 dstSellerAddress;
         uint32 dstEid;
         bytes32 srcTokenAddress;
         bytes32 dstTokenAddress;
         uint256 srcAmountLD;
         uint64 exchangeRateSD;
+        uint256 dstDecimalConversionRate;
     }
 
     /**

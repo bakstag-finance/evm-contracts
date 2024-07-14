@@ -17,10 +17,12 @@ abstract contract OtcMarketCore is IOtcMarket, OApp, OAppOptionsType3 {
     uint8 public constant SHARED_DECIMALS = 6;
     uint32 public immutable eid;
     Escrow public immutable escrow;
+    address public immutable treasury;
 
-    constructor(address _escrow, address _endpoint, address _delegate) OApp(_endpoint, _delegate) {
+    constructor(address _escrow, address _treasury, address _endpoint, address _delegate) OApp(_endpoint, _delegate) {
         eid = ILayerZeroEndpointV2(endpoint).eid();
         escrow = Escrow(payable(_escrow));
+        treasury = _treasury;
     }
 
     mapping(bytes32 offerId => Offer) public offers;

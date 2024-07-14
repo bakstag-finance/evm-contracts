@@ -9,7 +9,7 @@ interface IOtcMarketAcceptOffer is IOtcMarketCore {
     struct AcceptOfferParams {
         bytes32 offerId;
         uint64 srcAmountSD;
-        bytes32 buyer;
+        bytes32 srcBuyerAddress;
     }
 
     /**
@@ -40,10 +40,9 @@ interface IOtcMarketAcceptOffer is IOtcMarketCore {
      * - offer is accepted on destination chain
      * - offer accepted message came to source chain.
      */
-    event OfferAccepted(bytes32 offerId, uint64 srcAmountSD, bytes32 buyer);
+    event OfferAccepted(bytes32 offerId, uint64 srcAmountSD, bytes32 srcBuyerAddress, bytes32 dstBuyerAddress);
 
     function quoteAcceptOffer(
-        bytes32 _buyer,
         AcceptOfferParams calldata _params,
         bool _payInLzToken
     ) external returns (MessagingFee memory fee, AcceptOfferReceipt memory acceptOfferReceipt);

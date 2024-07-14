@@ -33,14 +33,14 @@ abstract contract OtcMarketCreateOffer is OtcMarketCore {
         returns (MessagingReceipt memory msgReceipt, CreateOfferReceipt memory createOfferReceipt)
     {
         // TODO: include dstDecimalsConversionRate in _params and limit srcAmount and exchangeRate
-        bytes32 advertiser = msg.sender.toBytes32();
+        bytes32 srcSellerAddress = msg.sender.toBytes32();
         address srcTokenAddress = _params.srcTokenAddress.toAddress();
 
         (uint64 srcAmountSD, uint256 srcAmountLD) = _removeDust(_params.srcAmountLD, srcTokenAddress);
         _validatePricing(srcTokenAddress, srcAmountLD, _params.exchangeRateSD);
 
         bytes32 offerId = hashOffer(
-            advertiser,
+            srcSellerAddress,
             eid,
             _params.dstEid,
             _params.srcTokenAddress,
@@ -52,8 +52,8 @@ abstract contract OtcMarketCreateOffer is OtcMarketCore {
         }
 
         offers[offerId] = Offer(
-            advertiser,
-            _params.beneficiary,
+            srcSellerAddress,
+            _params.dstSellerAddress,
             eid,
             _params.dstEid,
             _params.srcTokenAddress,
@@ -86,18 +86,17 @@ abstract contract OtcMarketCreateOffer is OtcMarketCore {
     }
 
     function quoteCreateOffer(
-        bytes32 _advertiser,
+        bytes32 _srcSellerAddress,
         CreateOfferParams calldata _params,
         bool _payInLzToken
     ) public view virtual override returns (MessagingFee memory fee, CreateOfferReceipt memory createOfferReceipt) {
-        // TODO: shall revert?
         (uint64 srcAmountSD, uint256 srcAmountLD) = _removeDust(
             _params.srcAmountLD,
             _params.srcTokenAddress.toAddress()
         );
 
         bytes32 offerId = hashOffer(
-            _advertiser,
+            _srcSellerAddress,
             eid,
             _params.dstEid,
             _params.srcTokenAddress,
@@ -108,8 +107,8 @@ abstract contract OtcMarketCreateOffer is OtcMarketCore {
         (bytes memory payload, bytes memory options) = _buildCreateOfferMsgAndOptions(
             offerId,
             Offer(
-                _advertiser,
-                _params.beneficiary,
+                _srcSellerAddress,
+                _params.dstSellerAddress,
                 eid,
                 _params.dstEid,
                 _params.srcTokenAddress,

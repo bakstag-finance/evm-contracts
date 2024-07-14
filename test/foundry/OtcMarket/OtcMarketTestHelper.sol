@@ -5,7 +5,7 @@ pragma solidity ^0.8.20;
 import { TestHelperOz5 } from "@layerzerolabs/test-devtools-evm-foundry/contracts/TestHelperOz5.sol";
 
 // OtcMarket imports
-import { MyOtcMarket } from "../../../contracts/protocol/MyOtcMarket.sol";
+import { OtcMarket } from "../../../contracts/protocol/OtcMarket.sol";
 import { MyToken } from "../../../contracts/MyToken.sol";
 import { Escrow } from "../../../contracts/protocol/Escrow.sol";
 
@@ -14,9 +14,9 @@ contract OtcMarketTestHelper is TestHelperOz5 {
     uint32 public bEid = 2;
     uint32 public cEid = 3;
 
-    MyOtcMarket public aOtcMarket;
-    MyOtcMarket public bOtcMarket;
-    MyOtcMarket public cOtcMarket;
+    OtcMarket public aOtcMarket;
+    OtcMarket public bOtcMarket;
+    OtcMarket public cOtcMarket;
 
     Escrow public aEscrow;
     Escrow public bEscrow;
@@ -35,9 +35,9 @@ contract OtcMarketTestHelper is TestHelperOz5 {
         bEscrow = new Escrow(address(this));
         cEscrow = new Escrow(address(this));
 
-        aOtcMarket = new MyOtcMarket(address(aEscrow), address(endpoints[aEid]), address(this));
-        bOtcMarket = new MyOtcMarket(address(bEscrow), address(endpoints[bEid]), address(this));
-        cOtcMarket = new MyOtcMarket(address(cEscrow), address(endpoints[cEid]), address(this));
+        aOtcMarket = new OtcMarket(address(aEscrow), address(this), address(endpoints[aEid]), address(this));
+        bOtcMarket = new OtcMarket(address(bEscrow), address(this), address(endpoints[bEid]), address(this));
+        cOtcMarket = new OtcMarket(address(cEscrow), address(this), address(endpoints[cEid]), address(this));
 
         aEscrow.transferOwnership(address(aOtcMarket));
         bEscrow.transferOwnership(address(bOtcMarket));
