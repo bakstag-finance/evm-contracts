@@ -26,6 +26,11 @@ interface IOtcMarketAcceptOffer is IOtcMarketCore {
     error NonexistentOffer(bytes32 offerId);
 
     /**
+     * @dev Too small amount to create or accept offer. Amount can be expressed either in LD or SD.
+     */
+    error InsufficientAmount(uint256 minumum, uint256 provided);
+
+    /**
      * @dev Tried to accept an offer for an amount exceeding the available offer amount.
      */
     error ExcessiveAmount(uint64 available, uint64 desired);

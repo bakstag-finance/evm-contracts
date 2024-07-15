@@ -21,26 +21,6 @@ abstract contract OtcMarketAcceptOffer is OtcMarketCore {
 
     using AmountCast for uint64;
 
-    function _validateAcceptOffer(AcceptOfferParams calldata _params) internal view virtual {
-        Offer storage offer = offers[_params.offerId];
-
-        if (offer.srcAmountSD == 0) {
-            revert NonexistentOffer(_params.offerId);
-        }
-        if (eid != offer.dstEid) {
-            revert InvalidEid(eid, offer.dstEid);
-        }
-        if (_params.srcAmountSD == 0) {
-            revert InsufficientAmount(1, _params.srcAmountSD);
-        }
-        if (offer.srcAmountSD < _params.srcAmountSD) {
-            revert ExcessiveAmount(offer.srcAmountSD, _params.srcAmountSD);
-        }
-        if (offer.dstTokenAddress.toAddress() == address(0) && _params.srcAmountSD > msg.value) {
-            revert InsufficientValue(_params.srcAmountSD, msg.value);
-        }
-    }
-
     function acceptOffer(
         AcceptOfferParams calldata _params,
         MessagingFee calldata _fee
@@ -89,6 +69,26 @@ abstract contract OtcMarketAcceptOffer is OtcMarketCore {
         fee = _quote(offer.dstEid, payload, options, _payInLzToken);
 
         acceptOfferReceipt = _toDstAmount(_params.srcAmountSD, offer.exchangeRateSD, offer.dstTokenAddress.toAddress());
+    }
+
+    function _validateAcceptOffer(AcceptOfferParams calldata _params) internal view virtual {
+        Offer storage offer = offers[_params.offerId];
+
+        if (offer.srcAmountSD == 0) {
+            revert NonexistentOffer(_params.offerId);
+        }
+        if (eid != offer.dstEid) {
+            revert InvalidEid(eid, offer.dstEid);
+        }
+        if (_params.srcAmountSD == 0) {
+            revert InsufficientAmount(1, _params.srcAmountSD);
+        }
+        if (offer.srcAmountSD < _params.srcAmountSD) {
+            revert ExcessiveAmount(offer.srcAmountSD, _params.srcAmountSD);
+        }
+        if (offer.dstTokenAddress.toAddress() == address(0) && _params.srcAmountSD > msg.value) {
+            revert InsufficientValue(_params.srcAmountSD, msg.value);
+        }
     }
 
     function _toDstAmount(

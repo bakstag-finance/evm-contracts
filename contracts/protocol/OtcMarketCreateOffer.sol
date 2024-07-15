@@ -86,7 +86,7 @@ abstract contract OtcMarketCreateOffer is OtcMarketCore {
         if (
             uint256(_srcAmountSD) * uint256(_exchangeRateSD) * _dstDecimalConversionRate < FEE * 10 ** SHARED_DECIMALS
         ) {
-            revert InsufficientPricing(_srcAmountSD, _exchangeRateSD, _dstDecimalConversionRate);
+            revert InvalidPricing(_srcAmountSD, _exchangeRateSD, _dstDecimalConversionRate);
         }
 
         if (_srcTokenAddress == address(0) && _srcAmountLD > msg.value) {

@@ -31,7 +31,7 @@ interface IOtcMarketCreateOffer is IOtcMarketCore {
      * @dev The product _srcAmountSD * _exchangeRateSD * dstDecimalConversionRate is smaller
      * than the minimumPricing to accept the offer.
      */
-    error InsufficientPricing(uint64 srcAmountSD, uint64 exchangeRateSD, uint256 dstDecimalConversionRate);
+    error InvalidPricing(uint64 srcAmountSD, uint64 exchangeRateSD, uint256 dstDecimalConversionRate);
 
     /**
      * @dev Cannot recreate the same offer. Top up or cancel the existing offer.
