@@ -33,18 +33,23 @@ abstract contract OtcMarketAcceptOffer is OtcMarketCore {
         _validateAcceptOffer(_params);
         Offer storage offer = offers[_params.offerId];
 
+        address dstTokenAddress = offer.dstTokenAddress.toAddress();
+        acceptOfferReceipt = _toDstAmount(_params.srcAmountSD, offer.exchangeRateSD, dstTokenAddress);
+
+        if (dstTokenAddress == address(0) && acceptOfferReceipt.dstAmountLD > msg.value) {
+            revert InsufficientValue(acceptOfferReceipt.dstAmountLD, msg.value);
+        }
+
         offer.srcAmountSD -= _params.srcAmountSD;
-        emit OfferAccepted(_params.offerId, _params.srcAmountSD, _params.srcBuyerAddress, msg.sender.toBytes32());
+        bytes32 dstBuyerAddress = msg.sender.toBytes32();
+        emit OfferAccepted(_params.offerId, _params.srcAmountSD, _params.srcBuyerAddress, dstBuyerAddress);
 
         (bytes memory payload, bytes memory options) = _buildAcceptOfferMsgAndOptions(
-            _params.srcBuyerAddress,
+            dstBuyerAddress,
             offer.dstEid,
             _params
         );
         msgReceipt = _lzSend(offer.dstEid, payload, options, _fee, payable(msg.sender));
-
-        address dstTokenAddress = offer.dstTokenAddress.toAddress();
-        acceptOfferReceipt = _toDstAmount(_params.srcAmountSD, offer.exchangeRateSD, dstTokenAddress);
 
         Transfer.transferFrom(dstTokenAddress, msg.sender, address(treasury), acceptOfferReceipt.feeLD);
         Transfer.transferFrom(
@@ -56,19 +61,17 @@ abstract contract OtcMarketAcceptOffer is OtcMarketCore {
     }
 
     function quoteAcceptOffer(
+        bytes32 _dstBuyerAddress,
         AcceptOfferParams calldata _params,
         bool _payInLzToken
     ) public virtual returns (MessagingFee memory fee, AcceptOfferReceipt memory acceptOfferReceipt) {
+        _validateAcceptOffer(_params); // revert
         Offer storage offer = offers[_params.offerId];
 
-        (bytes memory payload, bytes memory options) = _buildAcceptOfferMsgAndOptions(
-            _params.srcBuyerAddress,
-            eid,
-            _params
-        );
+        (bytes memory payload, bytes memory options) = _buildAcceptOfferMsgAndOptions(_dstBuyerAddress, eid, _params); // revert
         fee = _quote(offer.dstEid, payload, options, _payInLzToken);
 
-        acceptOfferReceipt = _toDstAmount(_params.srcAmountSD, offer.exchangeRateSD, offer.dstTokenAddress.toAddress());
+        acceptOfferReceipt = _toDstAmount(_params.srcAmountSD, offer.exchangeRateSD, offer.dstTokenAddress.toAddress()); // revert
     }
 
     function _validateAcceptOffer(AcceptOfferParams calldata _params) internal view virtual {
@@ -80,14 +83,8 @@ abstract contract OtcMarketAcceptOffer is OtcMarketCore {
         if (eid != offer.dstEid) {
             revert InvalidEid(eid, offer.dstEid);
         }
-        if (_params.srcAmountSD == 0) {
-            revert InsufficientAmount(1, _params.srcAmountSD);
-        }
         if (offer.srcAmountSD < _params.srcAmountSD) {
             revert ExcessiveAmount(offer.srcAmountSD, _params.srcAmountSD);
-        }
-        if (offer.dstTokenAddress.toAddress() == address(0) && _params.srcAmountSD > msg.value) {
-            revert InsufficientValue(_params.srcAmountSD, msg.value);
         }
     }
 
@@ -96,11 +93,15 @@ abstract contract OtcMarketAcceptOffer is OtcMarketCore {
         uint64 _exchangeRateSD,
         address _tokenAddress
     ) internal view virtual returns (AcceptOfferReceipt memory acceptOfferReceipt) {
-        uint256 dstAmountLD = (uint256(_srcAmountSD) *
-            uint256(_exchangeRateSD) *
-            _getDecimalConversionRate(_tokenAddress)) / (10 ** SHARED_DECIMALS);
+        uint256 dstDecimalConversionRate = _getDecimalConversionRate(_tokenAddress);
+
+        uint256 dstAmountLD = (uint256(_srcAmountSD) * uint256(_exchangeRateSD) * dstDecimalConversionRate) /
+            (10 ** SHARED_DECIMALS);
 
         uint256 feeLD = dstAmountLD / FEE;
+        if (feeLD == 0) {
+            revert InvalidPricing(_srcAmountSD, _exchangeRateSD, dstDecimalConversionRate);
+        }
 
         acceptOfferReceipt = AcceptOfferReceipt(dstAmountLD, feeLD);
     }

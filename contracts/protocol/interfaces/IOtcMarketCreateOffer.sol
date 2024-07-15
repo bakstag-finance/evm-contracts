@@ -7,7 +7,14 @@ import { IOtcMarketCore } from "./IOtcMarketCore.sol";
 
 interface IOtcMarketCreateOffer is IOtcMarketCore {
     /**
-     * @dev Parameters required to create an offer.
+     * @dev Parameters to create an offer.
+     * - dstSellerAddress: The address of the seller on destination chain.
+     * - dstEid: The destination Endoint ID.
+     * - srcTokenAddress: The source token address.
+     * - dstTokenAddress: The destination token address.
+     * - srcAmountLD: The source token amount for sale in local decimals.
+     * - exchangeRateSD: The price per source token in destination token units in shared decimals.
+     * - dstDecimalConversionRate: The decimal conversion rate of the destination token.
      */
     struct CreateOfferParams {
         bytes32 dstSellerAddress;
@@ -20,18 +27,14 @@ interface IOtcMarketCreateOffer is IOtcMarketCore {
     }
 
     /**
-     * @dev Struct representing CreateOffer receipt information.
+     * @dev BF OtcMarket create offer receipt.
+     * - offerId: The ID of the offer.
+     * - srcAmountLD: The amount actually taken from the seller in local decimals.
      */
     struct CreateOfferReceipt {
         bytes32 offerId;
-        uint256 srcAmountLD; // amount actually taken from the seller
+        uint256 srcAmountLD;
     }
-
-    /**
-     * @dev The product _srcAmountSD * _exchangeRateSD * dstDecimalConversionRate is smaller
-     * than the minimumPricing to accept the offer.
-     */
-    error InvalidPricing(uint64 srcAmountSD, uint64 exchangeRateSD, uint256 dstDecimalConversionRate);
 
     /**
      * @dev Cannot recreate the same offer. Top up or cancel the existing offer.
@@ -40,14 +43,14 @@ interface IOtcMarketCreateOffer is IOtcMarketCore {
 
     /**
      * @dev Emmited when
-     * - offer is created on source chain
-     * - offer created message came to destination chain.
+     * - offer is created on offer source chain
+     * - offer created message came to offer destination chain.
      */
     event OfferCreated(bytes32 indexed offerId, Offer offer);
 
     /**
      * @notice Provides a quote for the createOffer() operation.
-     * @param _srcSellerAddress The address of the seller on source chain.
+     * @param _srcSellerAddress The address of the seller on offer source chain.
      * @param _params The parameters for the createOffer() operation.
      * @param _payInLzToken Flag indicating whether the caller is paying in the LZ token.
      * @return fee The calculated LayerZero messaging fee from the send() operation.
@@ -59,7 +62,7 @@ interface IOtcMarketCreateOffer is IOtcMarketCore {
      *
      * @dev CreateOfferReceipt: BF OtcMarket create offer receipt
      *  - offerId: The unique global identifier of the created offer.
-     *  - amountLD: The amount actually taken from the seller.
+     *  - amountLD: The amount actually taken from the seller in local decimals.
      */
     function quoteCreateOffer(
         bytes32 _srcSellerAddress,
@@ -83,7 +86,7 @@ interface IOtcMarketCreateOffer is IOtcMarketCore {
      *
      * @dev CreateOfferReceipt: BF OtcMarket create offer receipt
      *  - offerId: The unique global identifier of the created offer.
-     *  - amountLD: The amount actually taken from the seller.
+     *  - amountLD: The amount actually taken from the seller in local decimals.
      */
     function createOffer(
         CreateOfferParams calldata _params,

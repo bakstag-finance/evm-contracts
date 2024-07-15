@@ -36,13 +36,10 @@ abstract contract OtcMarketCreateOffer is OtcMarketCore {
         address srcTokenAddress = _params.srcTokenAddress.toAddress();
 
         (uint64 srcAmountSD, uint256 srcAmountLD) = _removeDust(_params.srcAmountLD, srcTokenAddress);
-        _validatePricing(
-            srcTokenAddress,
-            srcAmountSD,
-            srcAmountLD,
-            _params.exchangeRateSD,
-            _params.dstDecimalConversionRate
-        );
+        _validatePricing(srcAmountSD, _params.exchangeRateSD, _params.dstDecimalConversionRate);
+        if (srcTokenAddress == address(0) && srcAmountLD > msg.value) {
+            revert InsufficientValue(srcAmountLD, msg.value);
+        }
 
         bytes32 offerId = hashOffer(
             srcSellerAddress,
@@ -76,24 +73,6 @@ abstract contract OtcMarketCreateOffer is OtcMarketCore {
         Transfer.transferFrom(srcTokenAddress, msg.sender, address(escrow), srcAmountLD);
     }
 
-    function _validatePricing(
-        address _srcTokenAddress,
-        uint64 _srcAmountSD,
-        uint256 _srcAmountLD,
-        uint64 _exchangeRateSD,
-        uint256 _dstDecimalConversionRate
-    ) internal virtual {
-        if (
-            uint256(_srcAmountSD) * uint256(_exchangeRateSD) * _dstDecimalConversionRate < FEE * 10 ** SHARED_DECIMALS
-        ) {
-            revert InvalidPricing(_srcAmountSD, _exchangeRateSD, _dstDecimalConversionRate);
-        }
-
-        if (_srcTokenAddress == address(0) && _srcAmountLD > msg.value) {
-            revert InsufficientValue(_srcAmountLD, msg.value);
-        }
-    }
-
     function quoteCreateOffer(
         bytes32 _srcSellerAddress,
         CreateOfferParams calldata _params,
@@ -103,6 +82,7 @@ abstract contract OtcMarketCreateOffer is OtcMarketCore {
             _params.srcAmountLD,
             _params.srcTokenAddress.toAddress()
         );
+        _validatePricing(srcAmountSD, _params.exchangeRateSD, _params.dstDecimalConversionRate); // revert
 
         bytes32 offerId = hashOffer(
             _srcSellerAddress,
@@ -112,6 +92,9 @@ abstract contract OtcMarketCreateOffer is OtcMarketCore {
             _params.dstTokenAddress,
             _params.exchangeRateSD
         );
+        if (offers[offerId].srcAmountSD != 0) {
+            revert OfferAlreadyExists(offerId);
+        } // revert
 
         (bytes memory payload, bytes memory options) = _buildCreateOfferMsgAndOptions(
             offerId,
@@ -125,10 +108,22 @@ abstract contract OtcMarketCreateOffer is OtcMarketCore {
                 srcAmountSD,
                 _params.exchangeRateSD
             )
-        );
+        ); // revert
 
         fee = _quote(_params.dstEid, payload, options, _payInLzToken);
         createOfferReceipt = CreateOfferReceipt(offerId, srcAmountLD);
+    }
+
+    function _validatePricing(
+        uint64 _srcAmountSD,
+        uint64 _exchangeRateSD,
+        uint256 _dstDecimalConversionRate
+    ) internal view virtual {
+        if (
+            uint256(_srcAmountSD) * uint256(_exchangeRateSD) * _dstDecimalConversionRate < FEE * 10 ** SHARED_DECIMALS
+        ) {
+            revert InvalidPricing(_srcAmountSD, _exchangeRateSD, _dstDecimalConversionRate);
+        }
     }
 
     function _removeDust(

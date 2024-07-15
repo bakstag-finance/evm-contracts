@@ -5,8 +5,10 @@ pragma solidity ^0.8.20;
 import { TestHelperOz5 } from "@layerzerolabs/test-devtools-evm-foundry/contracts/TestHelperOz5.sol";
 
 // OtcMarket imports
+import { MyToken } from "../../../contracts/token/MyToken.sol";
+import { MyTokenSmallDecimals } from "../../../contracts/token/MyTokenSmallDecimals.sol";
+
 import { OtcMarket } from "../../../contracts/protocol/OtcMarket.sol";
-import { MyToken } from "../../../contracts/MyToken.sol";
 import { Escrow } from "../../../contracts/protocol/Escrow.sol";
 
 contract OtcMarketTestHelper is TestHelperOz5 {
@@ -22,6 +24,7 @@ contract OtcMarketTestHelper is TestHelperOz5 {
     Escrow public bEscrow;
     Escrow public cEscrow;
 
+    MyTokenSmallDecimals public xToken; // token with 4 decimals (< 6 decimals)
     MyToken public aToken;
     MyToken public bToken;
 
@@ -43,6 +46,7 @@ contract OtcMarketTestHelper is TestHelperOz5 {
         bEscrow.transferOwnership(address(bOtcMarket));
         cEscrow.transferOwnership(address(cOtcMarket));
 
+        xToken = new MyTokenSmallDecimals(address(this));
         aToken = new MyToken(address(this));
         bToken = new MyToken(address(this));
 
