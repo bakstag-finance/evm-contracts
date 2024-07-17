@@ -152,6 +152,8 @@ abstract contract OtcMarketAcceptOffer is OtcMarketCore {
         offer.srcAmountSD -= srcAmountSD;
         emit OfferAccepted(offerId, srcAmountSD, srcBuyerAddress, dstBuyerAddress);
 
-        escrow.transfer(offer.srcTokenAddress.toAddress(), srcBuyerAddress.toAddress(), srcAmountSD);
+        uint256 srcAmountLD = srcAmountSD.toLD(_getDecimalConversionRate(offer.srcTokenAddress.toAddress()));
+
+        escrow.transfer(offer.srcTokenAddress.toAddress(), srcBuyerAddress.toAddress(), srcAmountLD);
     }
 }
