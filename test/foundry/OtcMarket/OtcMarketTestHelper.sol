@@ -90,11 +90,7 @@ contract OtcMarketTestHelper is TestHelperOz5 {
         uint256 srcAmountLD,
         uint64 exchangeRateSD
     ) internal returns (IOtcMarketCreateOffer.CreateOfferReceipt memory receipt) {
-        // introduce srcSellerAddress and dstSellerAddress
-        address srcSellerAddress = makeAddr("srcSellerAddress");
         vm.deal(srcSellerAddress, 10 ether);
-
-        address dstSellerAddress = makeAddr("dstSellerAddress");
 
         // set enforced options for a
         bytes memory enforcedOptions = OptionsBuilder
@@ -136,11 +132,9 @@ contract OtcMarketTestHelper is TestHelperOz5 {
 
     function _accept_offer(
         bytes32 offerId,
-        uint256 srcAmountSD,
-        bytes32 srcBuyerAddress
+        uint256 srcAmountSD
     ) internal returns (IOtcMarketAcceptOffer.AcceptOfferReceipt memory receipt) {
         // address of buyer on destinantion chain
-        address dstBuyerAddress = makeAddr("dstBuyerAddress");
         vm.deal(dstBuyerAddress, 10 ether);
 
         // set enforced options for b
@@ -162,7 +156,7 @@ contract OtcMarketTestHelper is TestHelperOz5 {
         IOtcMarketAcceptOffer.AcceptOfferParams memory params = IOtcMarketAcceptOffer.AcceptOfferParams(
             offerId,
             uint64(srcAmountSD),
-            srcBuyerAddress
+            addressToBytes32(srcBuyerAddress)
         );
 
         (MessagingFee memory fee, IOtcMarketAcceptOffer.AcceptOfferReceipt memory quoteReceipt) = bOtcMarket
