@@ -90,6 +90,27 @@ contract AcceptOffer is OtcMarketTestHelper {
         bOtcMarket.quoteAcceptOffer(addressToBytes32(dstBuyerAddress), params, false);
     }
 
+    function test_RevertOn_InvalidOptions() public {
+        vm.deal(dstBuyerAddress, 10 ether);
+
+        // create offer a -> b
+        IOtcMarketCreateOffer.CreateOfferReceipt memory receipt = _create_offer(SRC_AMOUNT_LD, EXCHANGE_RATE_SD);
+
+        // deliver OfferCreated message to bOtcMarket
+        verifyPackets(bEid, addressToBytes32(address(bOtcMarket)));
+
+        // try to accept with the excessive amount on b - quote should revert
+        IOtcMarketAcceptOffer.AcceptOfferParams memory params = IOtcMarketAcceptOffer.AcceptOfferParams(
+            receipt.offerId,
+            SRC_ACCEPT_AMOUNT_SD,
+            addressToBytes32(srcBuyerAddress)
+        );
+
+        // quote should revert
+        vm.expectRevert(abi.encodeWithSelector(IOAppOptionsType3.InvalidOptions.selector, bytes("")));
+        bOtcMarket.quoteAcceptOffer(addressToBytes32(dstBuyerAddress), params, false);
+    }
+
     function test_RevertOn_InvalidDecimals() public {
         vm.deal(dstBuyerAddress, 10 ether);
         vm.deal(srcSellerAddress, 10 ether);
