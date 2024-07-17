@@ -23,7 +23,6 @@ interface IOtcMarketCreateOffer is IOtcMarketCore {
         bytes32 dstTokenAddress;
         uint256 srcAmountLD;
         uint64 exchangeRateSD;
-        uint256 dstDecimalConversionRate;
     }
 
     /**

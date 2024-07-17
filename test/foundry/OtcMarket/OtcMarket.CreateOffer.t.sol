@@ -40,18 +40,11 @@ contract CreateOffer is OtcMarketTestHelper {
 
         vm.assume(srcAmountLD >= srcDecimalConversionRate && srcAmountLD <= type(uint64).max && exchangeRateSD > 0);
 
-        address srcSellerAddress = makeAddr("srcSellerAddress");
-        address dstSellerAddress = makeAddr("dstSellerAddress");
-
         uint64 srcAmountSD = srcAmountLD.toSD(srcDecimalConversionRate);
 
         // should emit OfferCreated
         vm.recordLogs();
-        IOtcMarketCreateOffer.CreateOfferReceipt memory receipt = _create_offer(
-            srcAmountLD,
-            exchangeRateSD,
-            DST_DECIMAL_CONVERSION_RATE
-        );
+        IOtcMarketCreateOffer.CreateOfferReceipt memory receipt = _create_offer(srcAmountLD, exchangeRateSD);
 
         Vm.Log[] memory entries = vm.getRecordedLogs();
 
@@ -78,17 +71,10 @@ contract CreateOffer is OtcMarketTestHelper {
 
         vm.assume(srcAmountLD >= srcDecimalConversionRate && srcAmountLD <= type(uint64).max && exchangeRateSD > 0);
 
-        address srcSellerAddress = makeAddr("srcSellerAddress");
-        address dstSellerAddress = makeAddr("dstSellerAddress");
-
         uint64 srcAmountSD = srcAmountLD.toSD(srcDecimalConversionRate);
 
         // should store offer
-        IOtcMarketCreateOffer.CreateOfferReceipt memory receipt = _create_offer(
-            srcAmountLD,
-            exchangeRateSD,
-            DST_DECIMAL_CONVERSION_RATE
-        );
+        IOtcMarketCreateOffer.CreateOfferReceipt memory receipt = _create_offer(srcAmountLD, exchangeRateSD);
 
         (
             bytes32 aAdversiter,
@@ -116,17 +102,11 @@ contract CreateOffer is OtcMarketTestHelper {
 
         vm.assume(srcAmountLD >= srcDecimalConversionRate && srcAmountLD <= type(uint64).max && exchangeRateSD > 0);
 
-        address srcSellerAddress = makeAddr("srcSellerAddress");
-
         // should update balances
         uint256 srcSellerAddressInitialBalance = srcAmountLD;
         uint256 escrowInitialBalance = ERC20(address(aToken)).balanceOf(address(aEscrow));
 
-        IOtcMarketCreateOffer.CreateOfferReceipt memory receipt = _create_offer(
-            srcAmountLD,
-            exchangeRateSD,
-            DST_DECIMAL_CONVERSION_RATE
-        );
+        IOtcMarketCreateOffer.CreateOfferReceipt memory receipt = _create_offer(srcAmountLD, exchangeRateSD);
 
         uint256 srcSellerAddressUpdatedBalance = ERC20(address(aToken)).balanceOf(srcSellerAddress);
         uint256 escrowUpdatedBalance = ERC20(address(aToken)).balanceOf(address(aEscrow));
@@ -140,11 +120,7 @@ contract CreateOffer is OtcMarketTestHelper {
     }
 
     function test_RevertOn_InvalidPricing() public {
-        // introduce srcSellerAddress and dstSellerAddress
-        address srcSellerAddress = makeAddr("srcSellerAddress");
         vm.deal(srcSellerAddress, 10 ether);
-
-        address dstSellerAddress = makeAddr("dstSellerAddress");
 
         // set enforced options for a
         bytes memory enforcedOptions = OptionsBuilder
@@ -169,18 +145,10 @@ contract CreateOffer is OtcMarketTestHelper {
                 addressToBytes32(address(aToken)),
                 addressToBytes32(address(bToken)),
                 0,
-                EXCHANGE_RATE_SD,
-                DST_DECIMAL_CONVERSION_RATE
+                EXCHANGE_RATE_SD
             );
 
-            vm.expectRevert(
-                abi.encodeWithSelector(
-                    IOtcMarketCore.InvalidPricing.selector,
-                    0,
-                    EXCHANGE_RATE_SD,
-                    DST_DECIMAL_CONVERSION_RATE
-                )
-            );
+            vm.expectRevert(abi.encodeWithSelector(IOtcMarketCore.InvalidPricing.selector, 0, EXCHANGE_RATE_SD));
             aOtcMarket.quoteCreateOffer(addressToBytes32(srcSellerAddress), params, false);
         }
 
@@ -195,46 +163,14 @@ contract CreateOffer is OtcMarketTestHelper {
                 addressToBytes32(address(aToken)),
                 addressToBytes32(address(bToken)),
                 SRC_AMOUNT_LD,
-                0,
-                DST_DECIMAL_CONVERSION_RATE
+                0
             );
 
             vm.expectRevert(
                 abi.encodeWithSelector(
                     IOtcMarketCore.InvalidPricing.selector,
                     SRC_AMOUNT_LD.toSD(srcDecimalConversionRate),
-                    0,
-                    DST_DECIMAL_CONVERSION_RATE
-                )
-            );
-            aOtcMarket.quoteCreateOffer(addressToBytes32(srcSellerAddress), params, false);
-        }
-
-        // invalid pricing
-        {
-            uint256 srcAmounLD = 10 ** 3;
-            uint64 exchangeRateSD = 10 ** 3;
-
-            uint256 srcDecimalConversionRate = 10 ** (ERC20(address(aToken)).decimals() - aOtcMarket.SHARED_DECIMALS());
-            uint256 dstDecimalConversionRate = 1;
-
-            // quote fee
-            IOtcMarketCreateOffer.CreateOfferParams memory params = IOtcMarketCreateOffer.CreateOfferParams(
-                addressToBytes32(dstSellerAddress),
-                bEid,
-                addressToBytes32(address(aToken)),
-                addressToBytes32(address(bToken)),
-                srcAmounLD,
-                exchangeRateSD,
-                dstDecimalConversionRate
-            );
-
-            vm.expectRevert(
-                abi.encodeWithSelector(
-                    IOtcMarketCore.InvalidPricing.selector,
-                    srcAmounLD.toSD(srcDecimalConversionRate),
-                    exchangeRateSD,
-                    dstDecimalConversionRate
+                    0
                 )
             );
             aOtcMarket.quoteCreateOffer(addressToBytes32(srcSellerAddress), params, false);
@@ -243,17 +179,9 @@ contract CreateOffer is OtcMarketTestHelper {
 
     function test_RevertIf_OfferAlreadyExists() public {
         // create an offer
-        IOtcMarketCreateOffer.CreateOfferReceipt memory receipt = _create_offer(
-            SRC_AMOUNT_LD,
-            EXCHANGE_RATE_SD,
-            DST_DECIMAL_CONVERSION_RATE
-        );
+        IOtcMarketCreateOffer.CreateOfferReceipt memory receipt = _create_offer(SRC_AMOUNT_LD, EXCHANGE_RATE_SD);
 
-        // introduce srcSellerAddress and dstSellerAddress
-        address srcSellerAddress = makeAddr("srcSellerAddress");
         vm.deal(srcSellerAddress, 10 ether);
-
-        address dstSellerAddress = makeAddr("dstSellerAddress");
 
         // set enforced options for a
         bytes memory enforcedOptions = OptionsBuilder
@@ -276,8 +204,7 @@ contract CreateOffer is OtcMarketTestHelper {
             addressToBytes32(address(aToken)),
             addressToBytes32(address(bToken)),
             SRC_AMOUNT_LD,
-            EXCHANGE_RATE_SD,
-            DST_DECIMAL_CONVERSION_RATE
+            EXCHANGE_RATE_SD
         );
 
         vm.expectRevert(abi.encodeWithSelector(IOtcMarketCreateOffer.OfferAlreadyExists.selector, receipt.offerId));
@@ -289,17 +216,10 @@ contract CreateOffer is OtcMarketTestHelper {
 
         vm.assume(srcAmountLD >= srcDecimalConversionRate && srcAmountLD <= type(uint64).max && exchangeRateSD > 0);
 
-        address srcSellerAddress = makeAddr("srcSellerAddress");
-        address dstSellerAddress = makeAddr("dstSellerAddress");
-
         uint64 srcAmountSD = srcAmountLD.toSD(srcDecimalConversionRate);
 
         // create an offer on aOtcMarket
-        IOtcMarketCreateOffer.CreateOfferReceipt memory receipt = _create_offer(
-            srcAmountLD,
-            exchangeRateSD,
-            DST_DECIMAL_CONVERSION_RATE
-        );
+        IOtcMarketCreateOffer.CreateOfferReceipt memory receipt = _create_offer(srcAmountLD, exchangeRateSD);
 
         // deliver OfferCreated message to bOtcMarket
         vm.recordLogs();
@@ -352,11 +272,7 @@ contract CreateOffer is OtcMarketTestHelper {
     }
 
     function test_RevertOn_InsufficientValue() public {
-        // introduce srcSellerAddress and dstSellerAddress
-        address srcSellerAddress = makeAddr("srcSellerAddress");
         vm.deal(srcSellerAddress, 10 ether);
-
-        address dstSellerAddress = makeAddr("dstSellerAddress");
 
         // set enforced options for a
         bytes memory enforcedOptions = OptionsBuilder
@@ -379,8 +295,7 @@ contract CreateOffer is OtcMarketTestHelper {
             addressToBytes32(address(0)),
             addressToBytes32(address(bToken)),
             SRC_AMOUNT_LD,
-            EXCHANGE_RATE_SD,
-            DST_DECIMAL_CONVERSION_RATE
+            EXCHANGE_RATE_SD
         );
 
         (MessagingFee memory fee, ) = aOtcMarket.quoteCreateOffer(addressToBytes32(srcSellerAddress), params, false);
@@ -399,11 +314,7 @@ contract CreateOffer is OtcMarketTestHelper {
     function testFuzz_NativeUpdateBalances(uint256 srcAmountLD, uint64 exchangeRateSD) public {
         vm.assume(srcAmountLD >= 10 ** 12 && srcAmountLD <= type(uint64).max && exchangeRateSD > 0);
 
-        // introduce srcSellerAddress and dstSellerAddress
-        address srcSellerAddress = makeAddr("srcSellerAddress");
         vm.deal(srcSellerAddress, srcAmountLD + 10 ether);
-
-        address dstSellerAddress = makeAddr("dstSellerAddress");
 
         // set enforced options for a
         bytes memory enforcedOptions = OptionsBuilder
@@ -426,8 +337,7 @@ contract CreateOffer is OtcMarketTestHelper {
             addressToBytes32(address(0)),
             addressToBytes32(address(bToken)),
             srcAmountLD,
-            exchangeRateSD,
-            DST_DECIMAL_CONVERSION_RATE
+            exchangeRateSD
         );
 
         (MessagingFee memory fee, ) = aOtcMarket.quoteCreateOffer(addressToBytes32(srcSellerAddress), params, false);
@@ -456,11 +366,7 @@ contract CreateOffer is OtcMarketTestHelper {
     }
 
     function test_RevertOn_InvalidOptions() public {
-        // introduce srcSellerAddress and dstSellerAddress
-        address srcSellerAddress = makeAddr("srcSellerAddress");
         vm.deal(srcSellerAddress, 10 ether);
-
-        address dstSellerAddress = makeAddr("dstSellerAddress");
 
         // quote fee
         IOtcMarketCreateOffer.CreateOfferParams memory params = IOtcMarketCreateOffer.CreateOfferParams(
@@ -469,8 +375,7 @@ contract CreateOffer is OtcMarketTestHelper {
             addressToBytes32(address(aToken)),
             addressToBytes32(address(bToken)),
             SRC_AMOUNT_LD,
-            EXCHANGE_RATE_SD,
-            DST_DECIMAL_CONVERSION_RATE
+            EXCHANGE_RATE_SD
         );
 
         vm.expectRevert(abi.encodeWithSelector(IOAppOptionsType3.InvalidOptions.selector, bytes("")));
@@ -478,11 +383,7 @@ contract CreateOffer is OtcMarketTestHelper {
     }
 
     function test_RevertOn_InvalidDecimals() public {
-        // introduce srcSellerAddress and dstSellerAddress
-        address srcSellerAddress = makeAddr("srcSellerAddress");
         vm.deal(srcSellerAddress, 10 ether);
-
-        address dstSellerAddress = makeAddr("dstSellerAddress");
 
         // quote fee
         IOtcMarketCreateOffer.CreateOfferParams memory params = IOtcMarketCreateOffer.CreateOfferParams(
@@ -491,8 +392,7 @@ contract CreateOffer is OtcMarketTestHelper {
             addressToBytes32(address(xToken)),
             addressToBytes32(address(bToken)),
             SRC_AMOUNT_LD,
-            EXCHANGE_RATE_SD,
-            DST_DECIMAL_CONVERSION_RATE
+            EXCHANGE_RATE_SD
         );
 
         vm.expectRevert();

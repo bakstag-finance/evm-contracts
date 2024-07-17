@@ -1,6 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
+// Forge imports
+import "forge-std/console.sol";
+import { Vm } from "forge-std/Vm.sol";
+
 // LZ imports
 import { OptionsBuilder } from "@layerzerolabs/lz-evm-oapp-v2/contracts/oapp/libs/OptionsBuilder.sol";
 import { EnforcedOptionParam } from "@layerzerolabs/lz-evm-oapp-v2/contracts/oapp/libs/OAppOptionsType3.sol";
@@ -15,6 +19,7 @@ import { MyTokenSmallDecimals } from "../../../contracts/token/MyTokenSmallDecim
 
 import { IOtcMarketCore } from "../../../contracts/protocol/interfaces/IOtcMarketCore.sol";
 import { IOtcMarketCreateOffer } from "../../../contracts/protocol/interfaces/IOtcMarketCreateOffer.sol";
+import { IOtcMarketAcceptOffer } from "../../../contracts/protocol/interfaces/IOtcMarketAcceptOffer.sol";
 
 import { OtcMarket } from "../../../contracts/protocol/OtcMarket.sol";
 import { Escrow } from "../../../contracts/protocol/Escrow.sol";
@@ -39,6 +44,16 @@ contract OtcMarketTestHelper is TestHelperOz5 {
     MyToken public bToken;
 
     uint128 public constant GAS_CREATE_OFFER = 180000;
+    uint128 public constant GAS_ACCEPT_OFFER = 180000;
+
+    address public srcBuyerAddress = makeAddr("srcBuyerAddress");
+    address public dstBuyerAddress = makeAddr("dstbuyerAddress");
+    address public srcSellerAddress = makeAddr("srcSellerAddress");
+    address public dstSellerAddress = makeAddr("dstSellerAddress");
+
+    address aTreasury = makeAddr("aTreasury");
+    address bTreasury = makeAddr("bTreasury");
+    address cTreasury = makeAddr("cTreasury");
 
     function setUp() public virtual override {
         super.setUp();
@@ -48,9 +63,9 @@ contract OtcMarketTestHelper is TestHelperOz5 {
         bEscrow = new Escrow(address(this));
         cEscrow = new Escrow(address(this));
 
-        aOtcMarket = new OtcMarket(address(aEscrow), address(this), address(endpoints[aEid]), address(this));
-        bOtcMarket = new OtcMarket(address(bEscrow), address(this), address(endpoints[bEid]), address(this));
-        cOtcMarket = new OtcMarket(address(cEscrow), address(this), address(endpoints[cEid]), address(this));
+        aOtcMarket = new OtcMarket(address(aEscrow), aTreasury, address(endpoints[aEid]), address(this));
+        bOtcMarket = new OtcMarket(address(bEscrow), bTreasury, address(endpoints[bEid]), address(this));
+        cOtcMarket = new OtcMarket(address(cEscrow), cTreasury, address(endpoints[cEid]), address(this));
 
         aEscrow.transferOwnership(address(aOtcMarket));
         bEscrow.transferOwnership(address(bOtcMarket));
@@ -73,8 +88,7 @@ contract OtcMarketTestHelper is TestHelperOz5 {
 
     function _create_offer(
         uint256 srcAmountLD,
-        uint64 exchangeRateSD,
-        uint256 dstDecimalConversionRate
+        uint64 exchangeRateSD
     ) internal returns (IOtcMarketCreateOffer.CreateOfferReceipt memory receipt) {
         // introduce srcSellerAddress and dstSellerAddress
         address srcSellerAddress = makeAddr("srcSellerAddress");
@@ -110,8 +124,7 @@ contract OtcMarketTestHelper is TestHelperOz5 {
             addressToBytes32(address(aToken)),
             addressToBytes32(address(bToken)),
             srcAmountLD,
-            exchangeRateSD,
-            dstDecimalConversionRate
+            exchangeRateSD
         );
 
         (MessagingFee memory fee, ) = aOtcMarket.quoteCreateOffer(addressToBytes32(srcSellerAddress), params, false);
@@ -119,5 +132,48 @@ contract OtcMarketTestHelper is TestHelperOz5 {
         // create an offer
         vm.prank(srcSellerAddress);
         (, receipt) = aOtcMarket.createOffer{ value: fee.nativeFee }(params, fee);
+    }
+
+    function _accept_offer(
+        bytes32 offerId,
+        uint256 srcAmountSD,
+        bytes32 srcBuyerAddress
+    ) internal returns (IOtcMarketAcceptOffer.AcceptOfferReceipt memory receipt) {
+        // address of buyer on destinantion chain
+        address dstBuyerAddress = makeAddr("dstBuyerAddress");
+        vm.deal(dstBuyerAddress, 10 ether);
+
+        // set enforced options for b
+        bytes memory enforcedOptions = OptionsBuilder
+            .newOptions()
+            .addExecutorLzReceiveOption(GAS_ACCEPT_OFFER, 0)
+            .addExecutorOrderedExecutionOption();
+        EnforcedOptionParam[] memory enforcedOptionsArray = new EnforcedOptionParam[](1);
+        enforcedOptionsArray[0] = EnforcedOptionParam(
+            aEid,
+            uint16(IOtcMarketCore.Message.OfferAccepted),
+            enforcedOptions
+        );
+
+        bOtcMarket.setEnforcedOptions(enforcedOptionsArray);
+
+        // tokens that buyer will spend
+
+        IOtcMarketAcceptOffer.AcceptOfferParams memory params = IOtcMarketAcceptOffer.AcceptOfferParams(
+            offerId,
+            uint64(srcAmountSD),
+            srcBuyerAddress
+        );
+
+        (MessagingFee memory fee, IOtcMarketAcceptOffer.AcceptOfferReceipt memory quoteReceipt) = bOtcMarket
+            .quoteAcceptOffer(addressToBytes32(dstBuyerAddress), params, false);
+
+        bToken.mint(dstBuyerAddress, quoteReceipt.dstAmountLD);
+        vm.prank(dstBuyerAddress);
+        bToken.approve(address(bOtcMarket), quoteReceipt.dstAmountLD);
+
+        // accept offer
+        vm.prank(dstBuyerAddress);
+        (, receipt) = bOtcMarket.acceptOffer{ value: fee.nativeFee }(params, fee);
     }
 }

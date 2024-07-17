@@ -24,7 +24,7 @@ interface IOtcMarketCore {
     /**
      * @dev The srcAmountSD and exchangeRateSD are too small to fulfill the offer.
      */
-    error InvalidPricing(uint64 srcAmountSD, uint64 exchangeRateSD, uint256 dstDecimalConversionRate);
+    error InvalidPricing(uint64 srcAmountSD, uint64 exchangeRateSD);
 
     /**
      * @dev Supplied value (in LD) is smaller than required.

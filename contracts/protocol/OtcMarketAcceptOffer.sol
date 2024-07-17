@@ -46,17 +46,17 @@ abstract contract OtcMarketAcceptOffer is OtcMarketCore {
 
         (bytes memory payload, bytes memory options) = _buildAcceptOfferMsgAndOptions(
             dstBuyerAddress,
-            offer.dstEid,
+            offer.srcEid,
             _params
         );
-        msgReceipt = _lzSend(offer.dstEid, payload, options, _fee, payable(msg.sender));
+        msgReceipt = _lzSend(offer.srcEid, payload, options, _fee, payable(msg.sender));
 
         Transfer.transferFrom(dstTokenAddress, msg.sender, address(treasury), acceptOfferReceipt.feeLD);
         Transfer.transferFrom(
             dstTokenAddress,
             msg.sender,
             offer.dstSellerAddress.toAddress(),
-            acceptOfferReceipt.dstAmountLD
+            acceptOfferReceipt.dstAmountLD - acceptOfferReceipt.feeLD
         );
     }
 
@@ -68,9 +68,12 @@ abstract contract OtcMarketAcceptOffer is OtcMarketCore {
         _validateAcceptOffer(_params); // revert
         Offer storage offer = offers[_params.offerId];
 
-        (bytes memory payload, bytes memory options) = _buildAcceptOfferMsgAndOptions(_dstBuyerAddress, eid, _params); // revert
-        fee = _quote(offer.dstEid, payload, options, _payInLzToken);
-
+        (bytes memory payload, bytes memory options) = _buildAcceptOfferMsgAndOptions(
+            _dstBuyerAddress,
+            offer.srcEid,
+            _params
+        ); // revert
+        fee = _quote(offer.srcEid, payload, options, _payInLzToken);
         acceptOfferReceipt = _toDstAmount(_params.srcAmountSD, offer.exchangeRateSD, offer.dstTokenAddress.toAddress()); // revert
     }
 
@@ -100,7 +103,7 @@ abstract contract OtcMarketAcceptOffer is OtcMarketCore {
 
         uint256 feeLD = dstAmountLD / FEE;
         if (feeLD == 0) {
-            revert InvalidPricing(_srcAmountSD, _exchangeRateSD, dstDecimalConversionRate);
+            revert InvalidPricing(_srcAmountSD, _exchangeRateSD);
         }
 
         acceptOfferReceipt = AcceptOfferReceipt(dstAmountLD, feeLD);
@@ -108,7 +111,7 @@ abstract contract OtcMarketAcceptOffer is OtcMarketCore {
 
     function _buildAcceptOfferMsgAndOptions(
         bytes32 _dstBuyerAddress,
-        uint32 _dstEid,
+        uint32 _srcEid,
         AcceptOfferParams calldata _params
     ) internal virtual returns (bytes memory payload, bytes memory options) {
         bytes memory msgPayload = abi.encodePacked(
@@ -117,9 +120,9 @@ abstract contract OtcMarketAcceptOffer is OtcMarketCore {
             _params.srcBuyerAddress,
             _dstBuyerAddress
         );
-        payload = abi.encodePacked(Message.OfferCreated, msgPayload);
+        payload = abi.encodePacked(Message.OfferAccepted, msgPayload);
 
-        options = enforcedOptions[_dstEid][uint16(Message.OfferAccepted)];
+        options = enforcedOptions[_srcEid][uint16(Message.OfferAccepted)];
         if (options.length == 0) {
             revert InvalidOptions(options);
         }

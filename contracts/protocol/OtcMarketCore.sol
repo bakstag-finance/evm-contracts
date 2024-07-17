@@ -68,7 +68,6 @@ abstract contract OtcMarketCore is IOtcMarket, OApp, OAppOptionsType3 {
     function _getDecimalConversionRate(
         address _tokenAddress
     ) internal view virtual returns (uint256 decimalConversionRate) {
-        // TODO: revert if decimals < SHARED_DECIMALS ?
         decimalConversionRate = _tokenAddress == address(0)
             ? 10 ** 12 // native
             : 10 ** (ERC20(_tokenAddress).decimals() - SHARED_DECIMALS); // token
@@ -85,7 +84,9 @@ abstract contract OtcMarketCore is IOtcMarket, OApp, OAppOptionsType3 {
 
         if (msgType == Message.OfferCreated) {
             _receiveOfferCreated(msgPayload);
-        } else if (msgType == Message.OfferAccepted) {}
+        } else if (msgType == Message.OfferAccepted) {
+            _receiveOfferAccepted(msgPayload);
+        }
     }
 
     function _decodePayload(
