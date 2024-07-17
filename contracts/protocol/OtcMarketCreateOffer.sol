@@ -115,7 +115,7 @@ abstract contract OtcMarketCreateOffer is OtcMarketCore {
     }
 
     function _validatePricing(uint64 _srcAmountSD, uint64 _exchangeRateSD) internal view virtual {
-        if (_exchangeRateSD == 0 || _exchangeRateSD == 0) {
+        if (_srcAmountSD == 0 || _exchangeRateSD == 0) {
             revert InvalidPricing(_srcAmountSD, _exchangeRateSD);
         }
     }
