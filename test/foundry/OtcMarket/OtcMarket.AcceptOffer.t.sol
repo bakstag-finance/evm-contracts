@@ -105,24 +105,32 @@ contract AcceptOffer is OtcMarketTestHelper {
         aToken.approve(address(aOtcMarket), SRC_AMOUNT_LD);
 
         // set enforced options for a
-        EnforcedOptionParam[] memory enforcedOptionsArray = new EnforcedOptionParam[](2);
-        enforcedOptionsArray[0] = EnforcedOptionParam(
-            bEid,
-            uint16(IOtcMarketCore.Message.OfferCreated),
-            OptionsBuilder
-                .newOptions()
-                .addExecutorLzReceiveOption(GAS_CREATE_OFFER, 0)
-                .addExecutorOrderedExecutionOption()
-        );
-        enforcedOptionsArray[1] = EnforcedOptionParam(
-            bEid,
-            uint16(IOtcMarketCore.Message.OfferAccepted),
-            OptionsBuilder
-                .newOptions()
-                .addExecutorLzReceiveOption(GAS_ACCEPT_OFFER, 0)
-                .addExecutorOrderedExecutionOption()
-        );
-        aOtcMarket.setEnforcedOptions(enforcedOptionsArray);
+        {
+            EnforcedOptionParam[] memory enforcedOptionsArray = new EnforcedOptionParam[](1);
+            enforcedOptionsArray[0] = EnforcedOptionParam(
+                bEid,
+                uint16(IOtcMarketCore.Message.OfferCreated),
+                OptionsBuilder
+                    .newOptions()
+                    .addExecutorLzReceiveOption(GAS_CREATE_OFFER, 0)
+                    .addExecutorOrderedExecutionOption()
+            );
+            aOtcMarket.setEnforcedOptions(enforcedOptionsArray);
+        }
+
+        // set enforced options for b
+        {
+            EnforcedOptionParam[] memory enforcedOptionsArray = new EnforcedOptionParam[](1);
+            enforcedOptionsArray[0] = EnforcedOptionParam(
+                aEid,
+                uint16(IOtcMarketCore.Message.OfferAccepted),
+                OptionsBuilder
+                    .newOptions()
+                    .addExecutorLzReceiveOption(GAS_ACCEPT_OFFER, 0)
+                    .addExecutorOrderedExecutionOption()
+            );
+            bOtcMarket.setEnforcedOptions(enforcedOptionsArray);
+        }
 
         // create offer a -> b
         IOtcMarketCreateOffer.CreateOfferParams memory createOfferParams = IOtcMarketCreateOffer.CreateOfferParams(
@@ -149,7 +157,6 @@ contract AcceptOffer is OtcMarketTestHelper {
         verifyPackets(bEid, addressToBytes32(address(bOtcMarket)));
 
         // try to accept on bOtcMarket - quote should revert
-
         IOtcMarketAcceptOffer.AcceptOfferParams memory acceptOfferParams = IOtcMarketAcceptOffer.AcceptOfferParams(
             createOfferReceipt.offerId,
             SRC_ACCEPT_AMOUNT_SD,
