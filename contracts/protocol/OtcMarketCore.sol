@@ -20,9 +20,9 @@ abstract contract OtcMarketCore is IOtcMarket, OApp, OAppOptionsType3 {
     Escrow public immutable escrow;
     address public immutable treasury;
 
-    constructor(address _escrow, address _treasury, address _endpoint, address _delegate) OApp(_endpoint, _delegate) {
+    constructor(address _treasury, address _endpoint, address _delegate) OApp(_endpoint, _delegate) {
         eid = ILayerZeroEndpointV2(endpoint).eid();
-        escrow = Escrow(payable(_escrow));
+        escrow = new Escrow(address(this));
         treasury = _treasury;
     }
 

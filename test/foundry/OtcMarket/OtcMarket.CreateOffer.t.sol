@@ -104,12 +104,12 @@ contract CreateOffer is OtcMarketTestHelper {
 
         // should update balances
         uint256 srcSellerAddressInitialBalance = srcAmountLD;
-        uint256 escrowInitialBalance = ERC20(address(aToken)).balanceOf(address(aEscrow));
+        uint256 escrowInitialBalance = ERC20(address(aToken)).balanceOf(address(aOtcMarket.escrow()));
 
         IOtcMarketCreateOffer.CreateOfferReceipt memory receipt = _create_offer(srcAmountLD, exchangeRateSD);
 
         uint256 srcSellerAddressUpdatedBalance = ERC20(address(aToken)).balanceOf(srcSellerAddress);
-        uint256 escrowUpdatedBalance = ERC20(address(aToken)).balanceOf(address(aEscrow));
+        uint256 escrowUpdatedBalance = ERC20(address(aToken)).balanceOf(address(aOtcMarket.escrow()));
 
         assertEq(
             srcSellerAddressUpdatedBalance,
@@ -342,7 +342,7 @@ contract CreateOffer is OtcMarketTestHelper {
 
         (MessagingFee memory fee, ) = aOtcMarket.quoteCreateOffer(addressToBytes32(srcSellerAddress), params, false);
 
-        uint256 escrowInitialBalance = address(aEscrow).balance;
+        uint256 escrowInitialBalance = address(aOtcMarket.escrow()).balance;
         uint256 srcSellerAddressInitialBalance = srcSellerAddress.balance;
 
         // create an offer
@@ -362,7 +362,7 @@ contract CreateOffer is OtcMarketTestHelper {
         );
 
         // should increase escrow balance
-        assertEq(address(aEscrow).balance, escrowInitialBalance + amountLD, "escrow balance");
+        assertEq(address(aOtcMarket.escrow()).balance, escrowInitialBalance + amountLD, "escrow balance");
     }
 
     function test_RevertOn_InvalidOptions() public {

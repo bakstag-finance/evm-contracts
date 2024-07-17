@@ -9,9 +9,8 @@ import { OtcMarketAcceptOffer } from "./OtcMarketAcceptOffer.sol";
 
 contract OtcMarket is OtcMarketCreateOffer, OtcMarketAcceptOffer {
     constructor(
-        address _escrow,
         address _treasury,
         address _endpoint,
         address _delegate
-    ) OtcMarketCore(_escrow, _treasury, _endpoint, _delegate) Ownable(_delegate) {}
+    ) OtcMarketCore(_treasury, _endpoint, _delegate) Ownable(_delegate) {}
 }

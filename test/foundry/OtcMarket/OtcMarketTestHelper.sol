@@ -36,10 +36,6 @@ contract OtcMarketTestHelper is TestHelperOz5 {
     OtcMarket public bOtcMarket;
     OtcMarket public cOtcMarket;
 
-    Escrow public aEscrow;
-    Escrow public bEscrow;
-    Escrow public cEscrow;
-
     Token4D public xToken;
     Token6D public sToken;
     Token18D public aToken;
@@ -61,17 +57,9 @@ contract OtcMarketTestHelper is TestHelperOz5 {
         super.setUp();
         setUpEndpoints(3, LibraryType.UltraLightNode);
 
-        aEscrow = new Escrow(address(this));
-        bEscrow = new Escrow(address(this));
-        cEscrow = new Escrow(address(this));
-
-        aOtcMarket = new OtcMarket(address(aEscrow), aTreasury, address(endpoints[aEid]), address(this));
-        bOtcMarket = new OtcMarket(address(bEscrow), bTreasury, address(endpoints[bEid]), address(this));
-        cOtcMarket = new OtcMarket(address(cEscrow), cTreasury, address(endpoints[cEid]), address(this));
-
-        aEscrow.transferOwnership(address(aOtcMarket));
-        bEscrow.transferOwnership(address(bOtcMarket));
-        cEscrow.transferOwnership(address(cOtcMarket));
+        aOtcMarket = new OtcMarket(aTreasury, address(endpoints[aEid]), address(this));
+        bOtcMarket = new OtcMarket(bTreasury, address(endpoints[bEid]), address(this));
+        cOtcMarket = new OtcMarket(cTreasury, address(endpoints[cEid]), address(this));
 
         xToken = new Token4D(address(this));
         sToken = new Token6D(address(this));
