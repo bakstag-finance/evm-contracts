@@ -111,16 +111,94 @@ contract AcceptOffer is OtcMarketTestHelper {
         bOtcMarket.quoteAcceptOffer(addressToBytes32(dstBuyerAddress), params, false);
     }
 
+    function test_RevertOn_InvalidPricing() public {
+        vm.deal(dstBuyerAddress, 10 ether);
+        vm.deal(srcSellerAddress, 10 ether);
+
+        uint256 srcAmounLD = 10 ** 12;
+        uint64 exchangeRateSD = 10 ** 3;
+
+        // approve aOtcMarket to spend seller src tokens
+        aToken.mint(srcSellerAddress, srcAmounLD);
+        vm.prank(srcSellerAddress);
+        aToken.approve(address(aOtcMarket), srcAmounLD);
+
+        // set enforced options for a
+        {
+            EnforcedOptionParam[] memory enforcedOptionsArray = new EnforcedOptionParam[](1);
+            enforcedOptionsArray[0] = EnforcedOptionParam(
+                bEid,
+                uint16(IOtcMarketCore.Message.OfferCreated),
+                OptionsBuilder
+                    .newOptions()
+                    .addExecutorLzReceiveOption(GAS_CREATE_OFFER, 0)
+                    .addExecutorOrderedExecutionOption()
+            );
+            aOtcMarket.setEnforcedOptions(enforcedOptionsArray);
+        }
+
+        // set enforced options for b
+        {
+            EnforcedOptionParam[] memory enforcedOptionsArray = new EnforcedOptionParam[](1);
+            enforcedOptionsArray[0] = EnforcedOptionParam(
+                aEid,
+                uint16(IOtcMarketCore.Message.OfferAccepted),
+                OptionsBuilder
+                    .newOptions()
+                    .addExecutorLzReceiveOption(GAS_ACCEPT_OFFER, 0)
+                    .addExecutorOrderedExecutionOption()
+            );
+            bOtcMarket.setEnforcedOptions(enforcedOptionsArray);
+        }
+
+        // create offer a -> b
+        IOtcMarketCreateOffer.CreateOfferParams memory createOfferParams = IOtcMarketCreateOffer.CreateOfferParams(
+            addressToBytes32(dstSellerAddress),
+            bEid,
+            addressToBytes32(address(aToken)),
+            addressToBytes32(address(sToken)),
+            srcAmounLD,
+            exchangeRateSD
+        );
+
+        (MessagingFee memory fee, ) = aOtcMarket.quoteCreateOffer(
+            addressToBytes32(srcSellerAddress),
+            createOfferParams,
+            false
+        );
+
+        vm.prank(srcSellerAddress);
+        (, IOtcMarketCreateOffer.CreateOfferReceipt memory createOfferReceipt) = aOtcMarket.createOffer{
+            value: fee.nativeFee
+        }(createOfferParams, fee);
+
+        // deliver OfferCreated message to bOtcMarket
+        verifyPackets(bEid, addressToBytes32(address(bOtcMarket)));
+
+        // try to accept on bOtcMarket - quote should revert
+        uint256 srcDecimalConversionRate = 10 ** (ERC20(address(aToken)).decimals() - aOtcMarket.SHARED_DECIMALS());
+
+        IOtcMarketAcceptOffer.AcceptOfferParams memory acceptOfferParams = IOtcMarketAcceptOffer.AcceptOfferParams(
+            createOfferReceipt.offerId,
+            srcAmounLD.toSD(srcDecimalConversionRate),
+            addressToBytes32(srcBuyerAddress)
+        );
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IOtcMarketCore.InvalidPricing.selector,
+                srcAmounLD.toSD(srcDecimalConversionRate),
+                exchangeRateSD
+            )
+        );
+        bOtcMarket.quoteAcceptOffer(addressToBytes32(dstBuyerAddress), acceptOfferParams, false);
+    }
+
     function test_RevertOn_InvalidDecimals() public {
         vm.deal(dstBuyerAddress, 10 ether);
         vm.deal(srcSellerAddress, 10 ether);
 
         // approve aOtcMarket to spend seller src tokens
-        aToken.mint(srcSellerAddress, SRC_AMOUNT_LD);
-        vm.prank(srcSellerAddress);
-        aToken.approve(address(aOtcMarket), SRC_AMOUNT_LD);
-
-        // approve bOtcMarket to spend buyer dst tokens
         aToken.mint(srcSellerAddress, SRC_AMOUNT_LD);
         vm.prank(srcSellerAddress);
         aToken.approve(address(aOtcMarket), SRC_AMOUNT_LD);

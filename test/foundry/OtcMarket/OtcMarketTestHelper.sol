@@ -14,8 +14,9 @@ import { MessagingFee } from "@layerzerolabs/lz-evm-oapp-v2/contracts/oapp/OApp.
 import { TestHelperOz5 } from "@layerzerolabs/test-devtools-evm-foundry/contracts/TestHelperOz5.sol";
 
 // BF imports
-import { MyToken } from "../../../contracts/token/MyToken.sol";
-import { MyTokenSmallDecimals } from "../../../contracts/token/MyTokenSmallDecimals.sol";
+import { Token4D } from "../../../contracts/token/Token4D.sol";
+import { Token6D } from "../../../contracts/token/Token6D.sol";
+import { Token18D } from "../../../contracts/token/Token18D.sol";
 
 import { IOtcMarketCore } from "../../../contracts/protocol/interfaces/IOtcMarketCore.sol";
 import { IOtcMarketCreateOffer } from "../../../contracts/protocol/interfaces/IOtcMarketCreateOffer.sol";
@@ -39,9 +40,10 @@ contract OtcMarketTestHelper is TestHelperOz5 {
     Escrow public bEscrow;
     Escrow public cEscrow;
 
-    MyTokenSmallDecimals public xToken; // token with 4 decimals (< 6 decimals)
-    MyToken public aToken;
-    MyToken public bToken;
+    Token4D public xToken;
+    Token6D public sToken;
+    Token18D public aToken;
+    Token18D public bToken;
 
     uint128 public constant GAS_CREATE_OFFER = 180000;
     uint128 public constant GAS_ACCEPT_OFFER = 180000;
@@ -71,9 +73,10 @@ contract OtcMarketTestHelper is TestHelperOz5 {
         bEscrow.transferOwnership(address(bOtcMarket));
         cEscrow.transferOwnership(address(cOtcMarket));
 
-        xToken = new MyTokenSmallDecimals(address(this));
-        aToken = new MyToken(address(this));
-        bToken = new MyToken(address(this));
+        xToken = new Token4D(address(this));
+        sToken = new Token6D(address(this));
+        aToken = new Token18D(address(this));
+        bToken = new Token18D(address(this));
 
         // wire a with b
         address[] memory oapps = new address[](2);
