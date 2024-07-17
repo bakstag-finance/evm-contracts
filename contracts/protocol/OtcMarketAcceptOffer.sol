@@ -64,7 +64,7 @@ abstract contract OtcMarketAcceptOffer is OtcMarketCore {
         bytes32 _dstBuyerAddress,
         AcceptOfferParams calldata _params,
         bool _payInLzToken
-    ) public virtual returns (MessagingFee memory fee, AcceptOfferReceipt memory acceptOfferReceipt) {
+    ) public view virtual returns (MessagingFee memory fee, AcceptOfferReceipt memory acceptOfferReceipt) {
         _validateAcceptOffer(_params); // revert
         Offer storage offer = offers[_params.offerId];
 
@@ -113,7 +113,7 @@ abstract contract OtcMarketAcceptOffer is OtcMarketCore {
         bytes32 _dstBuyerAddress,
         uint32 _srcEid,
         AcceptOfferParams calldata _params
-    ) internal virtual returns (bytes memory payload, bytes memory options) {
+    ) internal view virtual returns (bytes memory payload, bytes memory options) {
         bytes memory msgPayload = abi.encodePacked(
             _params.offerId,
             _params.srcAmountSD,
