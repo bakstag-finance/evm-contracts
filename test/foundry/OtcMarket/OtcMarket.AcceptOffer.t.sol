@@ -221,6 +221,7 @@ contract AcceptOffer is OtcMarketTestHelper {
 
         // address of buyer on destinantion chain
         vm.deal(dstBuyerAddress, 10 ether);
+
         // accept offer
         vm.prank(dstBuyerAddress);
         vm.expectRevert(
