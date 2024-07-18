@@ -48,7 +48,7 @@ interface IOtcMarketAcceptOffer is IOtcMarketCore {
      * - offer is accepted on offer destination chain
      * - offer accepted message came to offer source chain.
      */
-    event OfferAccepted(bytes32 offerId, uint64 srcAmountSD, bytes32 srcBuyerAddress, bytes32 dstBuyerAddress);
+    event OfferAccepted(bytes32 indexed offerId, uint64 srcAmountSD, bytes32 indexed srcBuyerAddress, bytes32 indexed dstBuyerAddress);
 
     /**
      * @notice Provides a quote for the acceptOffer() operation.
