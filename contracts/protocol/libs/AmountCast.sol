@@ -28,17 +28,12 @@ library AmountCast {
      * @dev Internal function to remove dust from the given local decimal amount.
      * @param _amountLD The amount in local decimals.
      * @param _decimalConversionRate The decimal conversion rate.
-     * @return amountSD The amount in shared decimals.
      * @return amountLD The amount after removing dust in local decimals.
      *
      * @dev Prevents the loss of dust when moving amounts between chains with different decimals.
      * @dev eg. uint(123) with a conversion rate of 100 becomes uint(100).
      */
-    function removeDust(
-        uint256 _amountLD,
-        uint256 _decimalConversionRate
-    ) internal pure returns (uint64 amountSD, uint256 amountLD) {
-        amountSD = toSD(_amountLD, _decimalConversionRate);
-        amountLD = toLD(amountSD, _decimalConversionRate);
+    function removeDust(uint256 _amountLD, uint256 _decimalConversionRate) public pure returns (uint256 amountLD) {
+        amountLD = (_amountLD / _decimalConversionRate) * _decimalConversionRate;
     }
 }

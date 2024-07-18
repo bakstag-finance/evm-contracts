@@ -6,10 +6,14 @@ import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import { ERC20Burnable } from "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol";
 import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 
-contract MyToken is ERC20, ERC20Burnable, Ownable {
+contract Token6D is ERC20, ERC20Burnable, Ownable {
     constructor(address initialOwner) ERC20("MyToken", "MTK") Ownable(initialOwner) {}
 
     function mint(address to, uint256 amount) public onlyOwner {
         _mint(to, amount);
+    }
+
+    function decimals() public pure override returns (uint8) {
+        return 6;
     }
 }
