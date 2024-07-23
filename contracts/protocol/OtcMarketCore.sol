@@ -16,9 +16,11 @@ import { Escrow } from "./Escrow.sol";
 abstract contract OtcMarketCore is IOtcMarket, OApp, OAppOptionsType3 {
     uint8 public constant FEE = 100; // 1/100 = 1%
     uint8 public constant SHARED_DECIMALS = 6;
+
     uint32 public immutable eid;
     Escrow public immutable escrow;
-    address public immutable treasury;
+
+    address public treasury;
 
     constructor(address _treasury, address _endpoint, address _delegate) OApp(_endpoint, _delegate) {
         eid = ILayerZeroEndpointV2(endpoint).eid();
@@ -35,11 +37,6 @@ abstract contract OtcMarketCore is IOtcMarket, OApp, OAppOptionsType3 {
     }
 
     function _acceptNonce(uint32 _srcEid, bytes32 _sender, uint64 _nonce) internal virtual {
-        // receivedNonce[_srcEid][_sender] += 1;
-        // if (_nonce != receivedNonce[_srcEid][_sender]) {
-        //     revert InvalidNonce();
-        // }
-
         if (_nonce != ++receivedNonce[_srcEid][_sender]) {
             revert InvalidNonce();
         }
@@ -48,6 +45,10 @@ abstract contract OtcMarketCore is IOtcMarket, OApp, OAppOptionsType3 {
     function _payNative(uint256 _nativeFee) internal virtual override returns (uint256 nativeFee) {
         if (msg.value < _nativeFee) revert NotEnoughNative(msg.value);
         return _nativeFee;
+    }
+
+    function setTreasury(address _treasury) public onlyOwner {
+        treasury = _treasury;
     }
 
     function hashOffer(

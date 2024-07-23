@@ -36,8 +36,8 @@ abstract contract OtcMarketAcceptOffer is OtcMarketCore {
         address dstTokenAddress = offer.dstTokenAddress.toAddress();
         acceptOfferReceipt = _toDstAmount(_params.srcAmountSD, offer.exchangeRateSD, dstTokenAddress);
 
-        if (dstTokenAddress == address(0) && acceptOfferReceipt.dstAmountLD > msg.value) {
-            revert InsufficientValue(acceptOfferReceipt.dstAmountLD, msg.value);
+        if (dstTokenAddress == address(0) && msg.value < acceptOfferReceipt.dstAmountLD) {
+            revert NotEnoughNative(msg.value);
         }
 
         offer.srcAmountSD -= _params.srcAmountSD;
@@ -73,6 +73,7 @@ abstract contract OtcMarketAcceptOffer is OtcMarketCore {
             offer.srcEid,
             _params
         ); // revert
+
         fee = _quote(offer.srcEid, payload, options, _payInLzToken);
         acceptOfferReceipt = _toDstAmount(_params.srcAmountSD, offer.exchangeRateSD, offer.dstTokenAddress.toAddress()); // revert
     }
@@ -153,7 +154,6 @@ abstract contract OtcMarketAcceptOffer is OtcMarketCore {
         emit OfferAccepted(offerId, srcAmountSD, srcBuyerAddress, dstBuyerAddress);
 
         uint256 srcAmountLD = srcAmountSD.toLD(_getDecimalConversionRate(offer.srcTokenAddress.toAddress()));
-
         escrow.transfer(offer.srcTokenAddress.toAddress(), srcBuyerAddress.toAddress(), srcAmountLD);
     }
 }
