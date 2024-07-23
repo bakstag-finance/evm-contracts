@@ -114,7 +114,7 @@ abstract contract OtcMarketCancelOffer is OtcMarketCore {
 
         MessagingFee memory _fee = quoteCancelOffer(offerId);
         (bytes memory payload, bytes memory options) = _buildCancelOfferMsgAndOptions(offer.srcEid, offerId);
-        _lzSend(offer.dstEid, payload, options, _fee, payable(offer.dstSellerAddress.toAddress()));
+        _lzSend(offer.srcEid, payload, options, _fee, payable(offer.dstSellerAddress.toAddress()));
 
         emit OfferCanceled(offerId);
         delete offers[offerId];
