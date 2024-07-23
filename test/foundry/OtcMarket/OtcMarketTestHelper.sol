@@ -41,8 +41,8 @@ contract OtcMarketTestHelper is TestHelperOz5 {
     Token18D public aToken;
     Token18D public bToken;
 
-    uint128 public constant GAS_CREATE_OFFER = 180000;
-    uint128 public constant GAS_ACCEPT_OFFER = 180000;
+    uint128 public constant GAS_CREATE_OFFER = 190000;
+    uint128 public constant GAS_ACCEPT_OFFER = 100000;
 
     address public srcBuyerAddress = makeAddr("srcBuyerAddress");
     address public dstBuyerAddress = makeAddr("dstbuyerAddress");
