@@ -5,7 +5,6 @@ import { MessagingReceipt, MessagingFee } from "@layerzerolabs/lz-evm-oapp-v2/co
 import { AddressCast } from "@layerzerolabs/lz-evm-protocol-v2/contracts/libs/AddressCast.sol";
 import { CalldataBytesLib } from "@layerzerolabs/lz-evm-protocol-v2/contracts/libs/CalldataBytesLib.sol";
 
-import { Transfer } from "./libs/Transfer.sol";
 import { AmountCast } from "./libs/AmountCast.sol";
 
 import { OtcMarketCore } from "./OtcMarketCore.sol";
@@ -19,149 +18,121 @@ abstract contract OtcMarketCancelOffer is OtcMarketCore {
     using AddressCast for address;
     using AddressCast for bytes32;
 
-    using AmountCast for uint256;
     using AmountCast for uint64;
 
-    function cancelOfferAppeal(
-        CancelOfferParams calldata _params,
+    function cancelOffer(
+        bytes32 _offerId,
         MessagingFee calldata _fee,
-    )   public
-        payable
-        virtual
-        override {
-        _validateCancelOfferAppeal(_params, addressToBytes32(msg.sender));
+        bytes calldata _extraSendOptions
+    ) public payable virtual override returns (MessagingReceipt memory msgReceipt) {
+        _validateCancelOffer(msg.sender.toBytes32(), _offerId);
 
-        Offer storage offer = offers[_params.offerId];
+        Offer storage offer = offers[_offerId];
 
-        (bytes memory payload, bytes memory options) = _buildCancelOfferAppealMsgAndOptions(
+        (bytes memory payload, bytes memory options) = _buildCancelOfferOrderMsgAndOptions(
             offer.dstEid,
-            _params,
+            _offerId,
+            _extraSendOptions
         );
-
         msgReceipt = _lzSend(offer.dstEid, payload, options, _fee, payable(msg.sender));
     }
 
-    function quoteCancelOfferAppeal(
+    function quoteCancelOffer(
         bytes32 _srcSellerAddress,
-        CancelOfferParams calldata _params,
-        bytes calldata _extraSendOptions, 
-        bool _payInLzToken,
-    ) public view virtual returns (MessagingFee memory fee, AcceptOfferReceipt memory acceptOfferReceipt) {
-        _validateCancelOfferAppeal(_params, _srcSellerAddress); // revert
-        Offer storage offer = offers[_params.offerId];
+        bytes32 _offerId,
+        bytes calldata _extraSendOptions,
+        bool _payInLzToken
+    ) public view virtual returns (MessagingFee memory fee) {
+        _validateCancelOffer(_srcSellerAddress, _offerId); // revert
+        Offer storage offer = offers[_offerId];
 
-        (bytes memory payload, bytes memory options) = _buildCancelOfferAppealMsgAndOptions(
+        (bytes memory payload, bytes memory options) = _buildCancelOfferOrderMsgAndOptions(
             offer.dstEid,
-            _params,
-            _extraSendOptions,
+            _offerId,
+            _extraSendOptions
         ); // revert
         fee = _quote(offer.dstEid, payload, options, _payInLzToken);
     }
 
-    function quoteCancelOffer(
-        CancelOfferParams calldata _params,
-    ) public view virtual returns (MessagingFee memory fee) {
-        uint16 srcEid = offers[_params.offerId].srcEid;
+    function quoteCancelOffer(bytes32 _offerId) public view virtual returns (MessagingFee memory fee) {
+        uint32 srcEid = offers[_offerId].srcEid;
 
-        (bytes memory payload, bytes memory options) = _buildCancelOfferMsgAndOptions(
-            _params.offerId,
-            srcEid
-        ); // revert
+        (bytes memory payload, bytes memory options) = _buildCancelOfferMsgAndOptions(srcEid, _offerId); // revert
         fee = _quote(srcEid, payload, options, false);
     }
 
-    function _validateCancelOfferAppeal(CancelOfferParams calldata _params, bytes32 srcSellerAddress) internal view virtual {
-        Offer storage offer = offers[_params.offerId];
+    function _validateCancelOffer(bytes32 _srcSellerAddress, bytes32 _offerId) internal view virtual {
+        Offer storage offer = offers[_offerId];
 
         if (offer.srcAmountSD == 0) {
-            revert NonexistentOffer(_params.offerId);
+            revert NonexistentOffer(_offerId);
         }
         if (eid != offer.srcEid) {
             revert InvalidEid(eid, offer.srcEid);
         }
-        if (offer.srcSeller != srcSellerAddress) {
-            revert OnlySeller(offer.srcSeller, srcSellerAddress);
+        if (offer.srcSellerAddress != _srcSellerAddress) {
+            revert OnlySeller(offer.srcSellerAddress, _srcSellerAddress);
         }
     }
 
-    function _buildCancelOfferAppealMsgAndOptions(
+    function _buildCancelOfferOrderMsgAndOptions(
         uint32 _dstEid,
-        CancelOfferParams calldata _params,
-        bytes calldata _extraSendOptions,
-    ) internal view virtual returns (bytes memory payload, bytes memory options){
-        bytes memory msgPayload = abi.encodePacked(
-            _params.offerId,
-            _returnFee
-        );
-        payload = abi.encodePacked(Message.OfferCancelAppeal, msgPayload);
+        bytes32 _offerId,
+        bytes calldata _extraSendOptions
+    ) internal view virtual returns (bytes memory payload, bytes memory options) {
+        bytes memory msgPayload = abi.encodePacked(_offerId);
+        payload = abi.encodePacked(Message.OfferCancelOrder, msgPayload);
 
-        bytes enforced = enforcedOptions[dstEid][uint16(Message.OfferCancelAppeal)];
+        bytes memory enforced = enforcedOptions[_dstEid][uint16(Message.OfferCancelOrder)];
         if (enforced.length == 0 || _extraSendOptions.length == 0) {
             revert InvalidOptions(bytes(""));
         }
-        options = combineOptions(dstEid, uint16(Message.OfferCancelAppeal), _extraSendOptions);
-        
+        options = combineOptions(_dstEid, uint16(Message.OfferCancelOrder), _extraSendOptions);
     }
 
     function _buildCancelOfferMsgAndOptions(
         uint32 _srcEid,
-        bytes32 offerId,
-    ) internal view virtual returns (bytes memory payload, bytes memory options){
-        bytes memory msgPayload = abi.encodePacked(
-            offerId,
-        );
+        bytes32 _offerId
+    ) internal view virtual returns (bytes memory payload, bytes memory options) {
+        bytes memory msgPayload = abi.encodePacked(_offerId);
         payload = abi.encodePacked(Message.OfferCanceled, msgPayload);
 
-        options = enforcedOptions[srcEid][uint16(Message.OfferCanceled)];
+        options = enforcedOptions[_srcEid][uint16(Message.OfferCanceled)];
         if (options.length == 0) {
             revert InvalidOptions(options);
         }
     }
 
-    function _decodeCancelOffer(
-        bytes calldata _payload
-    )
-        internal
-        pure
-        virtual
-        returns (bytes32 offerId)
-    {
+    function _decodeCancelOffer(bytes calldata _payload) internal pure virtual returns (bytes32 offerId) {
         offerId = _payload.toB32(0);
     }
 
-    function _receiveOfferCancelAppeal(bytes calldata _msgPayload) internal virtual override {
-        (bytes32 offerId) = _decodeCancelOffer(
-            _msgPayload
-        );
+    function _receiveOfferCancelOrder(bytes calldata _msgPayload) internal virtual override {
+        bytes32 offerId = _decodeCancelOffer(_msgPayload);
 
         Offer storage offer = offers[offerId];
 
-        emit OfferCancelled(offerId);
-
-        
-        MessagingFee memory _fee = quoteCancelOffer(CancelOfferParams(offerId));
-
-        (bytes memory payload, bytes memory options) = _buildCancelOfferMsgAndOptions(
-            offer.srcEid,
-            offerId
-        );
-
-        delete offers[offerId];
-
-        _lzSend(offer.dstEid, payload, options, _fee, payable(offer.dstSellerAddress));
-    }
-
-    function _receiveOfferCanceled(bytes calldata _msgPayload) internal virtual override{
-        (bytes32 offerId) = _decodeCancelOffer(
-            _msgPayload
-        );
-
-        Offer storage offer = offers[offerId];
+        MessagingFee memory _fee = quoteCancelOffer(offerId);
+        (bytes memory payload, bytes memory options) = _buildCancelOfferMsgAndOptions(offer.srcEid, offerId);
+        _lzSend(offer.dstEid, payload, options, _fee, payable(offer.dstSellerAddress.toAddress()));
 
         emit OfferCanceled(offerId);
+        delete offers[offerId];
+    }
 
-        escrow.transfer(offer.srcTokenAddress.toAddress(), offer.srcSellerAddress.toAddress(), offer.srcAmountSD.toLD(_getDecimalConversionRate(offer.srcTokenAddress.toAddress())));
+    function _receiveOfferCanceled(bytes calldata _msgPayload) internal virtual override {
+        bytes32 offerId = _decodeCancelOffer(_msgPayload);
 
-        delete offer;
-    }    
+        Offer storage offer = offers[offerId];
+        address srcTokenAddress = offer.srcTokenAddress.toAddress();
+
+        escrow.transfer(
+            srcTokenAddress,
+            offer.srcSellerAddress.toAddress(),
+            offer.srcAmountSD.toLD(_getDecimalConversionRate(srcTokenAddress))
+        );
+
+        emit OfferCanceled(offerId);
+        delete offers[offerId];
+    }
 }

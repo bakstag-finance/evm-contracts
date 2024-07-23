@@ -7,40 +7,25 @@ import { IOtcMarketCore } from "./IOtcMarketCore.sol";
 
 interface IOtcMarketCancelOffer is IOtcMarketCore {
     /**
-     * @dev Parameters to create an offer.
-     * - offerId: The ID of the offer to be cancelled.
+     * @dev The account is not the offer seller.
      */
-    struct CancelOfferParams {
-        bytes32 offerId;
-    }
+    error OnlySeller(bytes32 seller, bytes32 account);
 
     /**
-     * @notice Provides a quote for the cancelOffer() operation.
-     * @param _srcSellerAddress The address of the seller on offer source chain.
-     * @param _params The parameters for the cancelOffer() operation.
-     * @param _payInLzToken Flag indicating whether the caller is paying in the LZ token.
-     * @return fee The calculated LayerZero messaging fee from the send() operation.
-     *
-     * @dev MessagingReceipt: LayerZero msg receipt
-     *  - guid: The unique identifier for the sent message.
-     *  - nonce: The nonce of the sent message.
-     *  - fee: The LayerZero fee incurred for the message.
-     *
+     * @dev Emmited when
+     * - cancel offer appeal message came to the offer destination chain
+     * - cancel offer message came back to the offer source chain.
      */
-    function quoteCancelOffer(
-        bytes32 _srcSellerAddress,
-        CancelOfferParams calldata _params,
-        bool _payInLzToken
-    ) external view returns (MessagingFee memory fee);
+    event OfferCanceled(bytes32 indexed offerId);
 
     /**
-     * @notice Creates a new offer.
-     * @param _params The parameters for the createOffer() operation.
+     * @notice Orders the offer to be canceled.
+     * @param _offerId The ID of the offer to be canceled.
      * @param _fee The fee information supplied by the caller.
-     *      - nativeFee: The native fee.
-     *      - lzTokenFee: The lzToken fee.
+     *  - nativeFee: The native fee.
+     *  - lzTokenFee: The lzToken fee.
+     * @param _extraSendOptions The extra send options for return cancel offer message.
      * @return msgReceipt The LayerZero messaging receipt from the send() operation.
-     * @return createOfferReceipt The CreateOffer receipt information.
      *
      * @dev MessagingReceipt: LayerZero msg receipt
      *  - guid: The unique identifier for the sent message.
@@ -49,7 +34,8 @@ interface IOtcMarketCancelOffer is IOtcMarketCore {
      *
      */
     function cancelOffer(
-        CancelOfferParams calldata _params,
-        MessagingFee calldata _fee
+        bytes32 _offerId,
+        MessagingFee calldata _fee,
+        bytes calldata _extraSendOptions
     ) external payable returns (MessagingReceipt memory msgReceipt);
 }

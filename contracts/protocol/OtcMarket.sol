@@ -6,8 +6,9 @@ import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 import { OtcMarketCore } from "./OtcMarketCore.sol";
 import { OtcMarketCreateOffer } from "./OtcMarketCreateOffer.sol";
 import { OtcMarketAcceptOffer } from "./OtcMarketAcceptOffer.sol";
+import { OtcMarketCancelOffer } from "./OtcMarketCancelOffer.sol";
 
-contract OtcMarket is OtcMarketCreateOffer, OtcMarketAcceptOffer {
+contract OtcMarket is OtcMarketCreateOffer, OtcMarketAcceptOffer, OtcMarketCancelOffer {
     constructor(
         address _treasury,
         address _endpoint,
