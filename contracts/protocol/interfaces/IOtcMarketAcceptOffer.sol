@@ -9,7 +9,7 @@ interface IOtcMarketAcceptOffer is IOtcMarketCore {
     /**
      * @dev Parameters to accept the offer.
      * - offerId: The offer ID.
-     * - srcAmountSD: The amount to buy in shared decimals.
+     * - srcAmountSD: The amount to buy (in SD).
      * - srcBuyerAddress: The address of the buyer on offer source chain.
      */
     struct AcceptOfferParams {
@@ -20,8 +20,8 @@ interface IOtcMarketAcceptOffer is IOtcMarketCore {
 
     /**
      * @dev BF OtcMarket accept offer receipt.
-     * - dstAmountLD: The amount actually taken from the buyer in local decimals.
-     * - feeLD: The BF OtcMarket fee in local decimals.
+     * - dstAmountLD: The amount actually taken from the buyer (in LD).
+     * - feeLD: The BF OtcMarket fee (in LD).
      */
     struct AcceptOfferReceipt {
         uint256 dstAmountLD;
@@ -34,7 +34,7 @@ interface IOtcMarketAcceptOffer is IOtcMarketCore {
     error NonexistentOffer(bytes32 offerId);
 
     /**
-     * @dev Tried to accept an offer for an amount exceeding the available offer amount.
+     * @dev Tried to accept the offer for an amount exceeding the available offer amount.
      */
     error ExcessiveAmount(uint64 available, uint64 desired);
 
@@ -45,10 +45,15 @@ interface IOtcMarketAcceptOffer is IOtcMarketCore {
 
     /**
      * @dev Emmited when
-     * - offer is accepted on offer destination chain
-     * - offer accepted message came to offer source chain.
+     * - offer is accepted on the offer destination chain
+     * - offer accepted message came to the offer source chain.
      */
-    event OfferAccepted(bytes32 indexed offerId, uint64 srcAmountSD, bytes32 indexed srcBuyerAddress, bytes32 indexed dstBuyerAddress);
+    event OfferAccepted(
+        bytes32 indexed offerId,
+        uint64 srcAmountSD,
+        bytes32 indexed srcBuyerAddress,
+        bytes32 indexed dstBuyerAddress
+    );
 
     /**
      * @notice Provides a quote for the acceptOffer() operation.
@@ -63,8 +68,8 @@ interface IOtcMarketAcceptOffer is IOtcMarketCore {
      *  - fee: The LayerZero fee incurred for the message.
      *
      * @dev AcceptOfferReceipt: BF OtcMarket accept offer receipt
-     * - dstAmountLD: The amount actually taken from the buyer in local decimals.
-     * - feeLD: The BF OtcMarket fee in local decimals.
+     * - dstAmountLD: The amount actually taken from the buyer (in LD).
+     * - feeLD: The BF OtcMarket fee (in LD).
      */
     function quoteAcceptOffer(
         bytes32 _dstBuyerAddress,
@@ -87,8 +92,8 @@ interface IOtcMarketAcceptOffer is IOtcMarketCore {
      *  - fee: The LayerZero fee incurred for the message.
      *
      * @dev AcceptOfferReceipt: BF OtcMarket accept offer receipt
-     * - dstAmountLD: The amount actually taken from the buyer in local decimals.
-     * - feeLD: The BF OtcMarket fee in local decimals.
+     * - dstAmountLD: The amount actually taken from the buyer (in LD).
+     * - feeLD: The BF OtcMarket fee (in LD).
      */
     function acceptOffer(
         AcceptOfferParams calldata _params,

@@ -121,9 +121,10 @@ contract OtcMarketTestHelper is TestHelperOz5 {
         (, receipt) = aOtcMarket.createOffer{ value: fee.nativeFee }(params, fee);
     }
 
-    function _create_offer_native(        
+    function _create_offer_native(
         uint256 srcAmountLD,
-        uint64 exchangeRateSD) internal returns (IOtcMarketCreateOffer.CreateOfferReceipt memory receipt){
+        uint64 exchangeRateSD
+    ) internal returns (IOtcMarketCreateOffer.CreateOfferReceipt memory receipt) {
         vm.deal(srcSellerAddress, srcAmountLD + 10 ether);
 
         // set enforced options for a
@@ -154,7 +155,7 @@ contract OtcMarketTestHelper is TestHelperOz5 {
 
         // create an offer
         vm.prank(srcSellerAddress);
-        (, receipt) = aOtcMarket.createOffer{ value: fee.nativeFee + srcAmountLD }(params, fee); 
+        (, receipt) = aOtcMarket.createOffer{ value: fee.nativeFee + srcAmountLD }(params, fee);
     }
 
     function _accept_offer(
@@ -202,8 +203,6 @@ contract OtcMarketTestHelper is TestHelperOz5 {
         bytes32 offerId,
         uint256 srcAmountSD
     ) internal returns (IOtcMarketAcceptOffer.AcceptOfferReceipt memory receipt) {
-        
-
         // set enforced options for b
         bytes memory enforcedOptions = OptionsBuilder
             .newOptions()
@@ -218,7 +217,6 @@ contract OtcMarketTestHelper is TestHelperOz5 {
 
         bOtcMarket.setEnforcedOptions(enforcedOptionsArray);
 
-
         IOtcMarketAcceptOffer.AcceptOfferParams memory params = IOtcMarketAcceptOffer.AcceptOfferParams(
             offerId,
             uint64(srcAmountSD),
@@ -227,7 +225,6 @@ contract OtcMarketTestHelper is TestHelperOz5 {
 
         (MessagingFee memory fee, IOtcMarketAcceptOffer.AcceptOfferReceipt memory quoteReceipt) = bOtcMarket
             .quoteAcceptOffer(addressToBytes32(dstBuyerAddress), params, false);
-
 
         // address of buyer on destinantion chain
         vm.deal(dstBuyerAddress, quoteReceipt.dstAmountLD + 10 ether);
