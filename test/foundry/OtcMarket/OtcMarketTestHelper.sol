@@ -43,6 +43,8 @@ contract OtcMarketTestHelper is TestHelperOz5 {
 
     uint128 public constant GAS_CREATE_OFFER = 180000;
     uint128 public constant GAS_ACCEPT_OFFER = 180000;
+    uint128 public constant GAS_CANCEL_OFFER_ORDER = 500000;
+    uint128 public constant GAS_CANCEL_OFFER = 300000;
 
     address public srcBuyerAddress = makeAddr("srcBuyerAddress");
     address public dstBuyerAddress = makeAddr("dstbuyerAddress");
@@ -235,4 +237,73 @@ contract OtcMarketTestHelper is TestHelperOz5 {
         vm.prank(dstBuyerAddress);
         (, receipt) = bOtcMarket.acceptOffer{ value: quoteReceipt.dstAmountLD + fee.nativeFee }(params, fee);
     }
+
+    function _cancel_offer(
+        bytes32 offerId
+    ) internal returns (IOtcMarketAcceptOffer.AcceptOfferReceipt memory receipt) {
+        // address of seller on source chain
+        vm.deal(srcSellerAddress, 10 ether);
+
+        {
+            // set enforced options for а
+            bytes memory enforcedOptions = OptionsBuilder
+                .newOptions()
+                .addExecutorLzReceiveOption(GAS_CANCEL_OFFER_ORDER, 0)
+                .addExecutorOrderedExecutionOption();
+            EnforcedOptionParam[] memory enforcedOptionsArray = new EnforcedOptionParam[](1);
+            enforcedOptionsArray[0] = EnforcedOptionParam(
+                bEid,
+                uint16(IOtcMarketCore.Message.OfferCancelOrder),
+                enforcedOptions
+            );
+
+            aOtcMarket.setEnforcedOptions(enforcedOptionsArray);
+        }
+
+        {
+            // set enforced options for b
+            bytes memory enforcedOptions = OptionsBuilder
+                .newOptions()
+                .addExecutorLzReceiveOption(GAS_CANCEL_OFFER, 0)
+                .addExecutorOrderedExecutionOption();
+            EnforcedOptionParam[] memory enforcedOptionsArray = new EnforcedOptionParam[](1);
+            enforcedOptionsArray[0] = EnforcedOptionParam(
+                aEid,
+                uint16(IOtcMarketCore.Message.OfferCanceled),
+                enforcedOptions
+            );
+
+            bOtcMarket.setEnforcedOptions(enforcedOptionsArray);
+        }
+
+
+        // quoting fee
+        
+        // destination chain
+        MessagingFee memory returnFee = bOtcMarket.quoteCancelOffer(
+            offerId
+        );
+
+        
+        bytes memory extraSendOptions = OptionsBuilder.newOptions().addExecutorLzReceiveOption(0, uint128(returnFee.nativeFee));
+
+        MessagingFee memory fee = aOtcMarket.quoteCancelOfferOrder(
+            addressToBytes32(srcSellerAddress),
+            offerId,
+            extraSendOptions,
+            false
+        );
+     
+
+        vm.prank(srcSellerAddress);
+
+        aOtcMarket.cancelOfferOrder{ value: fee.nativeFee}(
+            offerId,
+            fee,
+            extraSendOptions
+        );
+
+
+    }
+
 }
