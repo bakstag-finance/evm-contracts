@@ -37,8 +37,8 @@ abstract contract OtcMarketCreateOffer is OtcMarketCore {
 
         (uint64 srcAmountSD, uint256 srcAmountLD) = _removeDust(_params.srcAmountLD, srcTokenAddress);
         _validatePricing(srcAmountSD, _params.exchangeRateSD);
-        if (srcTokenAddress == address(0) && srcAmountLD > msg.value) {
-            revert InsufficientValue(srcAmountLD, msg.value);
+        if (srcTokenAddress == address(0) && msg.value < srcAmountLD) {
+            revert NotEnoughNative(msg.value);
         }
 
         bytes32 offerId = hashOffer(
