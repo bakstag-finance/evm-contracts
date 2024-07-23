@@ -33,9 +33,45 @@ interface IOtcMarketCancelOffer is IOtcMarketCore {
      *  - fee: The LayerZero fee incurred for the message.
      *
      */
-    function cancelOffer(
+    function cancelOfferOrder(
         bytes32 _offerId,
         MessagingFee calldata _fee,
         bytes calldata _extraSendOptions
     ) external payable returns (MessagingReceipt memory msgReceipt);
+
+    /**
+     * @notice Provides a quote for cancelOffer() in offer source chain.
+     * @param _srcSellerAddress The address of the seller of the offer.
+     * @param _offerId The ID of the offer to be canceled.
+     * @param _extraSendOptions The extra send options for return cancel offer message.
+     * @param _payInLzToken Flag indicating whether the caller is paying in the LZ token.
+     * @return fee The calculated LayerZero messaging fee from the send() operation.
+     *
+     * @dev MessagingReceipt: LayerZero msg receipt
+     *  - guid: The unique identifier for the sent message.
+     *  - nonce: The nonce of the sent message.
+     *  - fee: The LayerZero fee incurred for the message.
+     */
+    
+    function quoteCancelOfferOrder(
+        bytes32 _srcSellerAddress,
+        bytes32 _offerId,
+        bytes calldata _extraSendOptions,
+        bool _payInLzToken
+    ) external returns (MessagingFee memory fee); 
+
+
+    /**
+     * @notice Provides a quote for cancelOffer() in offer destination chain.
+     * @param _offerId The ID of the offer to be canceled.
+     * @return fee The calculated LayerZero messaging fee from the send() operation.
+     *
+     * @dev MessagingReceipt: LayerZero msg receipt
+     *  - guid: The unique identifier for the sent message.
+     *  - nonce: The nonce of the sent message.
+     *  - fee: The LayerZero fee incurred for the message.
+     */
+    function quoteCancelOffer(bytes32 _offerId) external returns (MessagingFee memory fee);
+
+
 }
