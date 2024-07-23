@@ -35,7 +35,11 @@ contract CancelOffer is OtcMarketTestHelper {
 
     function test_cancelOffer() public {
         // create offer
-        IOtcMarketCreateOffer.CreateOfferReceipt memory createOfferReceipt = _create_offer(SRC_AMOUNT_LD, EXCHANGE_RATE_SD);
+        IOtcMarketCreateOffer.CreateOfferReceipt memory createOfferReceipt = _create_offer(
+            SRC_AMOUNT_LD,
+            EXCHANGE_RATE_SD,
+            false
+        );
         verifyPackets(bEid, addressToBytes32(address(bOtcMarket)));
 
         // cancel offer
