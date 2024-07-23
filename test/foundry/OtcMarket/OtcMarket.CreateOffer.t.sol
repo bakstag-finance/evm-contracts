@@ -171,11 +171,8 @@ contract CreateOffer is OtcMarketTestHelper {
         exchangeRateSD = uint64(bound(exchangeRateSD, 1, type(uint64).max));
 
         // create an offer on aOtcMarket
-        IOtcMarketCreateOffer.CreateOfferReceipt memory receipt = _create_offer(srcAmountLD, exchangeRateSD);
-
-        // deliver OfferCreated message to bOtcMarket
         vm.recordLogs();
-        verifyPackets(bEid, addressToBytes32(address(bOtcMarket)));
+        IOtcMarketCreateOffer.CreateOfferReceipt memory receipt = _create_offer(srcAmountLD, exchangeRateSD);
 
         // verify that OfferCreated event was emitted
         {
