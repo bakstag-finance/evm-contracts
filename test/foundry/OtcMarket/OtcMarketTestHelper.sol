@@ -102,7 +102,8 @@ contract OtcMarketTestHelper is TestHelperOz5 {
 
     function _create_offer(
         uint256 srcAmountLD,
-        uint64 exchangeRateSD
+        uint64 exchangeRateSD,
+        bool native
     ) internal returns (IOtcMarketCreateOffer.CreateOfferReceipt memory receipt) {
         _prepare_create_offer(srcAmountLD);
 
@@ -110,8 +111,8 @@ contract OtcMarketTestHelper is TestHelperOz5 {
         IOtcMarketCreateOffer.CreateOfferParams memory params = IOtcMarketCreateOffer.CreateOfferParams(
             addressToBytes32(dstSellerAddress),
             bEid,
-            addressToBytes32(address(aToken)),
-            addressToBytes32(address(bToken)),
+            native ? addressToBytes32(address(0)) : addressToBytes32(address(aToken)),
+            native ? addressToBytes32(address(0)) : addressToBytes32(address(bToken)),
             srcAmountLD,
             exchangeRateSD
         );
@@ -120,7 +121,10 @@ contract OtcMarketTestHelper is TestHelperOz5 {
 
         // create an offer
         vm.prank(srcSellerAddress);
-        (, receipt) = aOtcMarket.createOffer{ value: fee.nativeFee }(params, fee);
+        (, receipt) = aOtcMarket.createOffer{ value: native ? fee.nativeFee + srcAmountLD : fee.nativeFee }(
+            params,
+            fee
+        );
 
         // deliver offer created message to bOtcMarket
         verifyPackets(bEid, addressToBytes32(address(bOtcMarket)));
@@ -128,9 +132,10 @@ contract OtcMarketTestHelper is TestHelperOz5 {
 
     function _prepare_accept_offer(
         uint256 srcAmountLD,
-        uint64 exchangeRateSD
+        uint64 exchangeRateSD,
+        bool native
     ) public returns (IOtcMarketCreateOffer.CreateOfferReceipt memory createOfferReceipt) {
-        createOfferReceipt = _create_offer(srcAmountLD, exchangeRateSD);
+        createOfferReceipt = _create_offer(srcAmountLD, exchangeRateSD, native);
 
         vm.deal(dstBuyerAddress, 10 ether);
 
@@ -149,46 +154,10 @@ contract OtcMarketTestHelper is TestHelperOz5 {
         }
     }
 
-    // function _create_offer_native(
-    //     uint256 srcAmountLD,
-    //     uint64 exchangeRateSD
-    // ) internal returns (IOtcMarketCreateOffer.CreateOfferReceipt memory receipt) {
-    //     vm.deal(srcSellerAddress, srcAmountLD + 10 ether);
-
-    //     // set enforced options for a
-    //     bytes memory enforcedOptions = OptionsBuilder
-    //         .newOptions()
-    //         .addExecutorLzReceiveOption(GAS_CREATE_OFFER, 0)
-    //         .addExecutorOrderedExecutionOption();
-    //     EnforcedOptionParam[] memory enforcedOptionsArray = new EnforcedOptionParam[](1);
-    //     enforcedOptionsArray[0] = EnforcedOptionParam(
-    //         bEid,
-    //         uint16(IOtcMarketCore.Message.OfferCreated),
-    //         enforcedOptions
-    //     );
-
-    //     aOtcMarket.setEnforcedOptions(enforcedOptionsArray);
-
-    //     // quote fee
-    //     IOtcMarketCreateOffer.CreateOfferParams memory params = IOtcMarketCreateOffer.CreateOfferParams(
-    //         addressToBytes32(dstSellerAddress),
-    //         bEid,
-    //         addressToBytes32(address(0)),
-    //         addressToBytes32(address(0)),
-    //         srcAmountLD,
-    //         exchangeRateSD
-    //     );
-
-    //     (MessagingFee memory fee, ) = aOtcMarket.quoteCreateOffer(addressToBytes32(srcSellerAddress), params, false);
-
-    //     // create an offer
-    //     vm.prank(srcSellerAddress);
-    //     (, receipt) = aOtcMarket.createOffer{ value: fee.nativeFee + srcAmountLD }(params, fee);
-    // }
-
     function _accept_offer(
         bytes32 offerId,
-        uint256 srcAmountSD
+        uint256 srcAmountSD,
+        bool native
     ) internal returns (IOtcMarketAcceptOffer.AcceptOfferReceipt memory receipt) {
         IOtcMarketAcceptOffer.AcceptOfferParams memory params = IOtcMarketAcceptOffer.AcceptOfferParams(
             offerId,
@@ -199,46 +168,21 @@ contract OtcMarketTestHelper is TestHelperOz5 {
         (MessagingFee memory fee, IOtcMarketAcceptOffer.AcceptOfferReceipt memory quoteReceipt) = bOtcMarket
             .quoteAcceptOffer(addressToBytes32(dstBuyerAddress), params, false);
 
-        bToken.mint(dstBuyerAddress, quoteReceipt.dstAmountLD);
-        vm.prank(dstBuyerAddress);
-        bToken.approve(address(bOtcMarket), quoteReceipt.dstAmountLD);
+        if (native) {
+            vm.deal(dstBuyerAddress, quoteReceipt.dstAmountLD + 10 ether);
+        } else {
+            bToken.mint(dstBuyerAddress, quoteReceipt.dstAmountLD);
+            vm.prank(dstBuyerAddress);
+            bToken.approve(address(bOtcMarket), quoteReceipt.dstAmountLD);
+        }
 
         // accept offer
         vm.prank(dstBuyerAddress);
-        (, receipt) = bOtcMarket.acceptOffer{ value: fee.nativeFee }(params, fee);
+        (, receipt) = bOtcMarket.acceptOffer{
+            value: native ? fee.nativeFee + quoteReceipt.dstAmountLD : fee.nativeFee
+        }(params, fee);
+
+        // deliver offer accepted message to aOtcMarket
+        verifyPackets(aEid, addressToBytes32(address(aOtcMarket)));
     }
-
-    // function _accept_offer_native(
-    //     bytes32 offerId,
-    //     uint256 srcAmountSD
-    // ) internal returns (IOtcMarketAcceptOffer.AcceptOfferReceipt memory receipt) {
-    //     // set enforced options for b
-    //     bytes memory enforcedOptions = OptionsBuilder
-    //         .newOptions()
-    //         .addExecutorLzReceiveOption(GAS_ACCEPT_OFFER, 0)
-    //         .addExecutorOrderedExecutionOption();
-    //     EnforcedOptionParam[] memory enforcedOptionsArray = new EnforcedOptionParam[](1);
-    //     enforcedOptionsArray[0] = EnforcedOptionParam(
-    //         aEid,
-    //         uint16(IOtcMarketCore.Message.OfferAccepted),
-    //         enforcedOptions
-    //     );
-
-    //     bOtcMarket.setEnforcedOptions(enforcedOptionsArray);
-
-    //     IOtcMarketAcceptOffer.AcceptOfferParams memory params = IOtcMarketAcceptOffer.AcceptOfferParams(
-    //         offerId,
-    //         uint64(srcAmountSD),
-    //         addressToBytes32(srcBuyerAddress)
-    //     );
-
-    //     (MessagingFee memory fee, IOtcMarketAcceptOffer.AcceptOfferReceipt memory quoteReceipt) = bOtcMarket
-    //         .quoteAcceptOffer(addressToBytes32(dstBuyerAddress), params, false);
-
-    //     // address of buyer on destinantion chain
-    //     vm.deal(dstBuyerAddress, quoteReceipt.dstAmountLD + 10 ether);
-    //     // accept offer
-    //     vm.prank(dstBuyerAddress);
-    //     (, receipt) = bOtcMarket.acceptOffer{ value: quoteReceipt.dstAmountLD + fee.nativeFee }(params, fee);
-    // }
 }
