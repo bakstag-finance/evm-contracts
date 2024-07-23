@@ -86,6 +86,10 @@ abstract contract OtcMarketCore is IOtcMarket, OApp, OAppOptionsType3 {
             _receiveOfferCreated(msgPayload);
         } else if (msgType == Message.OfferAccepted) {
             _receiveOfferAccepted(msgPayload);
+        } else if (msgType == Message.OfferCancelAppeal){
+            _receiveOfferCancelAppeal(msgPayload);
+        } else if (msgType == Message.OfferCanceled) {
+            _receiveOfferCanceled(msgPayload);
         }
     }
 
@@ -99,4 +103,8 @@ abstract contract OtcMarketCore is IOtcMarket, OApp, OAppOptionsType3 {
     function _receiveOfferCreated(bytes calldata _msgPayload) internal virtual;
 
     function _receiveOfferAccepted(bytes calldata _msgPayload) internal virtual;
+
+    function _receiveOfferCancelAppeal(bytes calldata _msgPayload) internal virtual;
+
+    function _receiveOfferCanceled(bytes calldata _msgPayload) internal virtual;
 }
