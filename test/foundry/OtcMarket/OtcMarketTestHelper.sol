@@ -77,24 +77,19 @@ contract OtcMarketTestHelper is TestHelperOz5 {
         this.wireOApps(oapps);
     }
 
-    function _create_offer(
-        uint256 srcAmountLD,
-        uint64 exchangeRateSD
-    ) internal returns (IOtcMarketCreateOffer.CreateOfferReceipt memory receipt) {
-        vm.deal(srcSellerAddress, 10 ether);
+    function _prepare_create_offer(uint256 srcAmountLD) public {
+        vm.deal(srcSellerAddress, 10 ether + srcAmountLD);
 
         // set enforced options for a
-        bytes memory enforcedOptions = OptionsBuilder
-            .newOptions()
-            .addExecutorLzReceiveOption(GAS_CREATE_OFFER, 0)
-            .addExecutorOrderedExecutionOption();
         EnforcedOptionParam[] memory enforcedOptionsArray = new EnforcedOptionParam[](1);
         enforcedOptionsArray[0] = EnforcedOptionParam(
             bEid,
             uint16(IOtcMarketCore.Message.OfferCreated),
-            enforcedOptions
+            OptionsBuilder
+                .newOptions()
+                .addExecutorLzReceiveOption(GAS_CREATE_OFFER, 0)
+                .addExecutorOrderedExecutionOption()
         );
-
         aOtcMarket.setEnforcedOptions(enforcedOptionsArray);
 
         // mint src token
@@ -103,6 +98,13 @@ contract OtcMarketTestHelper is TestHelperOz5 {
         // approve aOtcMarket to spend src token
         vm.prank(srcSellerAddress);
         aToken.approve(address(aOtcMarket), srcAmountLD);
+    }
+
+    function _create_offer(
+        uint256 srcAmountLD,
+        uint64 exchangeRateSD
+    ) internal returns (IOtcMarketCreateOffer.CreateOfferReceipt memory receipt) {
+        _prepare_create_offer(srcAmountLD);
 
         // quote fee
         IOtcMarketCreateOffer.CreateOfferParams memory params = IOtcMarketCreateOffer.CreateOfferParams(
