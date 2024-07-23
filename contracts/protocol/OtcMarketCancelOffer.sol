@@ -20,7 +20,7 @@ abstract contract OtcMarketCancelOffer is OtcMarketCore {
 
     using AmountCast for uint64;
 
-    function cancelOffer(
+    function cancelOfferOrder(
         bytes32 _offerId,
         MessagingFee calldata _fee,
         bytes calldata _extraSendOptions
@@ -37,7 +37,7 @@ abstract contract OtcMarketCancelOffer is OtcMarketCore {
         msgReceipt = _lzSend(offer.dstEid, payload, options, _fee, payable(msg.sender));
     }
 
-    function quoteCancelOffer(
+    function quoteCancelOfferOrder(
         bytes32 _srcSellerAddress,
         bytes32 _offerId,
         bytes calldata _extraSendOptions,
