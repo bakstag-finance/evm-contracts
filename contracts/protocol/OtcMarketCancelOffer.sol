@@ -69,7 +69,7 @@ abstract contract OtcMarketCancelOffer is IOtcMarketCancelOffer, OtcMarketCore {
             revert NonexistentOffer(_offerId);
         }
         if (eid != offer.srcEid) {
-            revert InvalidEid(eid, offer.srcEid);
+            revert InvalidEid(offer.srcEid, eid);
         }
         if (offer.srcSellerAddress != _srcSellerAddress) {
             revert OnlySeller(offer.srcSellerAddress, _srcSellerAddress);

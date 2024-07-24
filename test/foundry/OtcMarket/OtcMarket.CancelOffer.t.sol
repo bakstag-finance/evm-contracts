@@ -85,4 +85,26 @@ contract CancelOffer is OtcMarketTestHelper {
         vm.expectRevert(abi.encodeWithSelector(IOtcMarketCore.NonexistentOffer.selector, mockOfferId));
         aOtcMarket.quoteCancelOfferOrder(addressToBytes32(srcSellerAddress), mockOfferId, extraSendOptions, false);
     }
+
+    function test_RevertOn_InvalidEid() public {
+        IOtcMarketCreateOffer.CreateOfferReceipt memory createOfferReceipt = _prepare_cancel_offer(
+            SRC_AMOUNT_LD,
+            EXCHANGE_RATE_SD,
+            false
+        );
+        MessagingFee memory returnFee = bOtcMarket.quoteCancelOffer(createOfferReceipt.offerId);
+        bytes memory extraSendOptions = OptionsBuilder.newOptions().addExecutorLzReceiveOption(
+            0,
+            uint128(returnFee.nativeFee)
+        );
+
+        vm.prank(srcSellerAddress);
+        vm.expectRevert(abi.encodeWithSelector(IOtcMarketCore.InvalidEid.selector, aEid, bEid));
+        bOtcMarket.quoteCancelOfferOrder(
+            addressToBytes32(srcSellerAddress),
+            createOfferReceipt.offerId,
+            extraSendOptions,
+            false
+        );
+    }
 }
