@@ -32,6 +32,11 @@ interface IOtcMarketCore {
     error NonexistentOffer(bytes32 offerId);
 
     /**
+     * @dev Provided Endpoint ID does not match the required one.
+     */
+    error InvalidEid(uint32 required, uint32 provided);
+
+    /**
      * @dev Offer parameters.
      * - srcSellerAddress: The address of the seller on source chain.
      * - dstSellerAddress: The address of the seller on destination chain.

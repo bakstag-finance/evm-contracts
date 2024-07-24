@@ -34,11 +34,6 @@ interface IOtcMarketAcceptOffer is IOtcMarketCore {
     error ExcessiveAmount(uint64 available, uint64 desired);
 
     /**
-     * @dev Provided Endpoint ID does not match the required one.
-     */
-    error InvalidEid(uint32 required, uint32 provided);
-
-    /**
      * @dev Emmited when
      * - offer is accepted on the offer destination chain
      * - offer accepted message came to the offer source chain.

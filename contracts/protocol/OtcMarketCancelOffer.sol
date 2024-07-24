@@ -7,12 +7,13 @@ import { CalldataBytesLib } from "@layerzerolabs/lz-evm-protocol-v2/contracts/li
 
 import { AmountCast } from "./libs/AmountCast.sol";
 
+import { IOtcMarketCancelOffer } from "./interfaces/IOtcMarketCancelOffer.sol";
 import { OtcMarketCore } from "./OtcMarketCore.sol";
 
 /**
  * @dev Module of {OtcMarket} for offer cancelation.
  */
-abstract contract OtcMarketCancelOffer is OtcMarketCore {
+abstract contract OtcMarketCancelOffer is IOtcMarketCancelOffer, OtcMarketCore {
     using CalldataBytesLib for bytes;
 
     using AddressCast for address;

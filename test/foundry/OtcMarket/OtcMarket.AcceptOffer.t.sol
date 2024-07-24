@@ -61,7 +61,7 @@ contract AcceptOffer is OtcMarketTestHelper {
         );
 
         // try to accept on a - quote should revert with InvalidEid
-        vm.expectRevert(abi.encodeWithSelector(IOtcMarketAcceptOffer.InvalidEid.selector, aEid, bEid));
+        vm.expectRevert(abi.encodeWithSelector(IOtcMarketCore.InvalidEid.selector, aEid, bEid));
         aOtcMarket.quoteAcceptOffer(addressToBytes32(dstBuyerAddress), params, false);
     }
 
