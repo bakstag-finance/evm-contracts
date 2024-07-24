@@ -224,7 +224,7 @@ contract AcceptOffer is OtcMarketTestHelper {
         uint64 exchangeRateSD,
         uint256 srcAcceptAmountLD
     ) public {
-        uint256 srcDecimalConversionRate = 10 ** (ERC20(address(aToken)).decimals() - aOtcMarket.SHARED_DECIMALS());
+        uint256 srcDecimalConversionRate = 10 ** (18 - aOtcMarket.SHARED_DECIMALS());
         srcAmountLD = bound(srcAmountLD, srcDecimalConversionRate, type(uint64).max);
         exchangeRateSD = uint64(bound(exchangeRateSD, 1, type(uint64).max));
         srcAcceptAmountLD = bound(srcAcceptAmountLD, srcDecimalConversionRate, srcAmountLD);
