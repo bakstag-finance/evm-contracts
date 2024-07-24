@@ -217,8 +217,10 @@ contract CancelOffer is OtcMarketTestHelper {
         srcAcceptAmountLD = bound(srcAcceptAmountLD, srcDecimalConversionRate, srcAmountLD - 1);
         uint64 srcAcceptAmountSD = srcAcceptAmountLD.toSD(srcDecimalConversionRate);
 
+        _set_enforced_accept_offer();
+
         // create offer
-        IOtcMarketCreateOffer.CreateOfferReceipt memory createOfferReceipt = _prepare_accept_offer(
+        IOtcMarketCreateOffer.CreateOfferReceipt memory createOfferReceipt = _prepare_cancel_offer(
             srcAmountLD,
             exchangeRateSD,
             false
@@ -240,11 +242,6 @@ contract CancelOffer is OtcMarketTestHelper {
 
         //cancel offer
 
-        IOtcMarketCreateOffer.CreateOfferReceipt memory createOfferReceipt = _prepare_cancel_offer(
-            srcAmountLD,
-            exchangeRateSD,
-            false
-        );
         _cancel_offer(createOfferReceipt.offerId);
         verifyPackets(bEid, addressToBytes32(address(bOtcMarket)));
         verifyPackets(aEid, addressToBytes32(address(aOtcMarket)));
