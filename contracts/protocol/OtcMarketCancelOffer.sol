@@ -43,7 +43,7 @@ abstract contract OtcMarketCancelOffer is IOtcMarketCancelOffer, OtcMarketCore {
         bytes32 _offerId,
         bytes calldata _extraSendOptions,
         bool _payInLzToken
-    ) public view virtual returns (MessagingFee memory fee) {
+    ) public view virtual override returns (MessagingFee memory fee) {
         _validateCancelOffer(_srcSellerAddress, _offerId); // revert
         Offer storage offer = offers[_offerId];
 
@@ -55,7 +55,7 @@ abstract contract OtcMarketCancelOffer is IOtcMarketCancelOffer, OtcMarketCore {
         fee = _quote(offer.dstEid, payload, options, _payInLzToken);
     }
 
-    function quoteCancelOffer(bytes32 _offerId) public view virtual returns (MessagingFee memory fee) {
+    function quoteCancelOffer(bytes32 _offerId) public view virtual override returns (MessagingFee memory fee) {
         uint32 srcEid = offers[_offerId].srcEid;
 
         (bytes memory payload, bytes memory options) = _buildCancelOfferMsgAndOptions(srcEid, _offerId); // revert

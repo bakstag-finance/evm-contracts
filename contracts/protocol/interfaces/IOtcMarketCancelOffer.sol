@@ -52,14 +52,12 @@ interface IOtcMarketCancelOffer is IOtcMarketCore {
      *  - nonce: The nonce of the sent message.
      *  - fee: The LayerZero fee incurred for the message.
      */
-    
     function quoteCancelOfferOrder(
         bytes32 _srcSellerAddress,
         bytes32 _offerId,
         bytes calldata _extraSendOptions,
         bool _payInLzToken
-    ) external returns (MessagingFee memory fee); 
-
+    ) external returns (MessagingFee memory fee);
 
     /**
      * @notice Provides a quote for cancelOffer() in offer destination chain.
@@ -72,6 +70,4 @@ interface IOtcMarketCancelOffer is IOtcMarketCore {
      *  - fee: The LayerZero fee incurred for the message.
      */
     function quoteCancelOffer(bytes32 _offerId) external returns (MessagingFee memory fee);
-
-
 }
