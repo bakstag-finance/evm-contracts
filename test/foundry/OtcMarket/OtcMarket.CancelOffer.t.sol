@@ -19,6 +19,7 @@ import { AmountCast } from "../../../contracts/protocol/libs/AmountCast.sol";
 
 import { IOtcMarketAcceptOffer } from "../../../contracts/protocol/interfaces/IOtcMarketAcceptOffer.sol";
 import { IOtcMarketCreateOffer } from "../../../contracts/protocol/interfaces/IOtcMarketCreateOffer.sol";
+import { IOtcMarketCancelOffer } from "../../../contracts/protocol/interfaces/IOtcMarketCancelOffer.sol";
 import { IOtcMarketCore } from "../../../contracts/protocol/interfaces/IOtcMarketCore.sol";
 
 contract CancelOffer is OtcMarketTestHelper {
@@ -106,5 +107,158 @@ contract CancelOffer is OtcMarketTestHelper {
             extraSendOptions,
             false
         );
+    }
+
+    function test_RevertIf_NotSeller() public {
+        IOtcMarketCreateOffer.CreateOfferReceipt memory createOfferReceipt = _prepare_cancel_offer(
+            SRC_AMOUNT_LD,
+            EXCHANGE_RATE_SD,
+            false
+        );
+        MessagingFee memory returnFee = bOtcMarket.quoteCancelOffer(createOfferReceipt.offerId);
+        bytes memory extraSendOptions = OptionsBuilder.newOptions().addExecutorLzReceiveOption(
+            0,
+            uint128(returnFee.nativeFee)
+        );
+
+        vm.prank(srcSellerAddress);
+        MessagingFee memory fee = aOtcMarket.quoteCancelOfferOrder(
+            addressToBytes32(srcSellerAddress),
+            createOfferReceipt.offerId,
+            extraSendOptions,
+            false
+        );
+
+        vm.deal(srcBuyerAddress, 10 ether);
+        vm.prank(srcBuyerAddress);
+        vm.expectRevert(
+            abi.encodeWithSelector(IOtcMarketCancelOffer.OnlySeller.selector, srcSellerAddress, srcBuyerAddress)
+        );
+        aOtcMarket.cancelOfferOrder{ value: fee.nativeFee }(createOfferReceipt.offerId, fee, extraSendOptions);
+    }
+
+    function test_RevertOn_InvalidOptions() public {
+        IOtcMarketCreateOffer.CreateOfferReceipt memory createOfferReceipt = _create_offer(
+            SRC_AMOUNT_LD,
+            EXCHANGE_RATE_SD,
+            false
+        );
+
+        {
+            EnforcedOptionParam[] memory enforcedOptionsArray = new EnforcedOptionParam[](1);
+            enforcedOptionsArray[0] = EnforcedOptionParam(
+                aEid,
+                uint16(IOtcMarketCore.Message.OfferCanceled),
+                OptionsBuilder
+                    .newOptions()
+                    .addExecutorLzReceiveOption(GAS_CANCEL_OFFER, 0)
+                    .addExecutorOrderedExecutionOption()
+            );
+
+            bOtcMarket.setEnforcedOptions(enforcedOptionsArray);
+        }
+
+        {
+            // no enforced options
+            MessagingFee memory returnFee = bOtcMarket.quoteCancelOffer(createOfferReceipt.offerId);
+            bytes memory extraSendOptions = OptionsBuilder.newOptions().addExecutorLzReceiveOption(
+                0,
+                uint128(returnFee.nativeFee)
+            );
+
+            vm.expectRevert(abi.encodeWithSelector(IOAppOptionsType3.InvalidOptions.selector, bytes("")));
+            aOtcMarket.quoteCancelOfferOrder(
+                addressToBytes32(srcSellerAddress),
+                createOfferReceipt.offerId,
+                extraSendOptions,
+                false
+            );
+        }
+
+        {
+            {
+                // set enforced options
+                MessagingFee memory returnFee = bOtcMarket.quoteCancelOffer(createOfferReceipt.offerId);
+
+                EnforcedOptionParam[] memory enforcedOptionsArray = new EnforcedOptionParam[](1);
+                enforcedOptionsArray[0] = EnforcedOptionParam(
+                    bEid,
+                    uint16(IOtcMarketCore.Message.OfferCancelOrder),
+                    OptionsBuilder
+                        .newOptions()
+                        .addExecutorLzReceiveOption(GAS_CANCEL_OFFER_ORDER, uint128(returnFee.nativeFee))
+                        .addExecutorOrderedExecutionOption()
+                );
+
+                aOtcMarket.setEnforcedOptions(enforcedOptionsArray);
+            }
+
+            // no extra options
+            bytes memory extraSendOptions = bytes("");
+
+            vm.expectRevert(abi.encodeWithSelector(IOAppOptionsType3.InvalidOptions.selector, bytes("")));
+            aOtcMarket.quoteCancelOfferOrder(
+                addressToBytes32(srcSellerAddress),
+                createOfferReceipt.offerId,
+                extraSendOptions,
+                false
+            );
+        }
+    }
+
+    function testFuzz_UpdateBalances_cancel(
+        uint256 srcAmountLD,
+        uint64 exchangeRateSD,
+        uint256 srcAcceptAmountLD
+    ) public {
+        uint256 srcDecimalConversionRate = 10 ** (ERC20(address(aToken)).decimals() - aOtcMarket.SHARED_DECIMALS());
+        srcAmountLD = bound(srcAmountLD, srcDecimalConversionRate + 1, type(uint64).max);
+        exchangeRateSD = uint64(bound(exchangeRateSD, 1, type(uint64).max));
+        srcAcceptAmountLD = bound(srcAcceptAmountLD, srcDecimalConversionRate, srcAmountLD - 1);
+        uint64 srcAcceptAmountSD = srcAcceptAmountLD.toSD(srcDecimalConversionRate);
+
+        // create offer
+        IOtcMarketCreateOffer.CreateOfferReceipt memory createOfferReceipt = _prepare_accept_offer(
+            srcAmountLD,
+            exchangeRateSD,
+            false
+        );
+
+        // accept offer
+        IOtcMarketAcceptOffer.AcceptOfferReceipt memory acceptOfferReceipt = _accept_offer(
+            createOfferReceipt.offerId,
+            srcAcceptAmountSD,
+            false
+        );
+        verifyPackets(aEid, addressToBytes32(address(aOtcMarket)));
+
+        uint256 dstSellerInitialBalance = ERC20(address(bToken)).balanceOf(address(dstSellerAddress));
+        uint256 dstTreasuryInitialBalance = ERC20(address(bToken)).balanceOf(address(bTreasury));
+
+        uint256 srcEscrowInitialBalance = ERC20(address(aToken)).balanceOf(address(aOtcMarket.escrow()));
+        uint256 srcBuyerInitialBalance = ERC20(address(aToken)).balanceOf(address(srcBuyerAddress));
+
+        //cancel offer
+
+        IOtcMarketCreateOffer.CreateOfferReceipt memory createOfferReceipt = _prepare_cancel_offer(
+            srcAmountLD,
+            exchangeRateSD,
+            false
+        );
+        _cancel_offer(createOfferReceipt.offerId);
+        verifyPackets(bEid, addressToBytes32(address(bOtcMarket)));
+        verifyPackets(aEid, addressToBytes32(address(aOtcMarket)));
+
+        //  bytes32 srcSellerAddress;
+        // bytes32 dstSellerAddress;
+        // uint32 srcEid;
+        // uint32 dstEid;
+        // bytes32 srcTokenAddress;
+        // bytes32 dstTokenAddress;
+        // uint64 srcAmountSD;
+        // uint64 exchangeRateSD;
+        (, , , , , , uint64 offerSrcAmount, ) = aOtcMarket.offers(createOfferReceipt.offerId);
+
+        assertEq(offerSrcAmount, 0, "offer existance on chain a");
     }
 }
