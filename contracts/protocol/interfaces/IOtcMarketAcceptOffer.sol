@@ -29,11 +29,6 @@ interface IOtcMarketAcceptOffer is IOtcMarketCore {
     }
 
     /**
-     * @dev Offer with the provided ID does not exist.
-     */
-    error NonexistentOffer(bytes32 offerId);
-
-    /**
      * @dev Tried to accept the offer for an amount exceeding the available offer amount.
      */
     error ExcessiveAmount(uint64 available, uint64 desired);

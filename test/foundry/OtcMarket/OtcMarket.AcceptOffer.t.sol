@@ -44,7 +44,7 @@ contract AcceptOffer is OtcMarketTestHelper {
         );
 
         // quote should revert with NonexistentOffer
-        vm.expectRevert(abi.encodeWithSelector(IOtcMarketAcceptOffer.NonexistentOffer.selector, mockOfferId));
+        vm.expectRevert(abi.encodeWithSelector(IOtcMarketCore.NonexistentOffer.selector, mockOfferId));
         aOtcMarket.quoteAcceptOffer(addressToBytes32(dstBuyerAddress), params, false);
     }
 

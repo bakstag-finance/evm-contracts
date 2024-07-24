@@ -33,15 +33,56 @@ contract CancelOffer is OtcMarketTestHelper {
     uint64 public constant EXCHANGE_RATE_SD = 15 * 10 ** 5; // 1.5 dst/src
     uint256 public constant DST_DECIMAL_CONVERSION_RATE = 10 ** 12; // e.g. ERC20
 
-    function test_CancelOffer() public {
+    // TODO: test where one accepts an offer partially and then seller cancels it
+
+    function testFuzz_EmitEvents(uint256 srcAmountLD, uint64 exchangeRateSD) public {
+        uint256 srcDecimalConversionRate = 10 ** (ERC20(address(aToken)).decimals() - aOtcMarket.SHARED_DECIMALS());
+        srcAmountLD = bound(srcAmountLD, srcDecimalConversionRate, type(uint64).max);
+        exchangeRateSD = uint64(bound(exchangeRateSD, 1, type(uint64).max));
+
         // create offer
-        IOtcMarketCreateOffer.CreateOfferReceipt memory createOfferReceipt = _create_offer(
-            SRC_AMOUNT_LD,
-            EXCHANGE_RATE_SD,
+        IOtcMarketCreateOffer.CreateOfferReceipt memory createOfferReceipt = _prepare_cancel_offer(
+            srcAmountLD,
+            exchangeRateSD,
             false
         );
 
         // cancel offer
+        vm.recordLogs();
         _cancel_offer(createOfferReceipt.offerId);
+
+        bytes32 signature = keccak256("OfferCanceled(bytes32)");
+        Vm.Log[] memory entries = vm.getRecordedLogs();
+
+        for (uint j = 0; j < 2; j++) {
+            // first iteration for dst
+            // second iteration for src
+            for (uint i = 0; i < entries.length; i++) {
+                if (entries[i].topics[0] == signature) {
+                    Vm.Log memory offerCanceledLog = entries[i];
+
+                    assertEq(offerCanceledLog.topics[1], createOfferReceipt.offerId);
+                }
+            }
+        }
+    }
+
+    function test_RevertOn_NonexistentOffer() public {
+        bytes32 mockOfferId = addressToBytes32(makeAddr("mockOfferId"));
+
+        IOtcMarketCreateOffer.CreateOfferReceipt memory createOfferReceipt = _prepare_cancel_offer(
+            SRC_AMOUNT_LD,
+            EXCHANGE_RATE_SD,
+            false
+        );
+        MessagingFee memory returnFee = bOtcMarket.quoteCancelOffer(createOfferReceipt.offerId);
+        bytes memory extraSendOptions = OptionsBuilder.newOptions().addExecutorLzReceiveOption(
+            0,
+            uint128(returnFee.nativeFee)
+        );
+
+        vm.prank(srcSellerAddress);
+        vm.expectRevert(abi.encodeWithSelector(IOtcMarketCore.NonexistentOffer.selector, mockOfferId));
+        aOtcMarket.quoteCancelOfferOrder(addressToBytes32(srcSellerAddress), mockOfferId, extraSendOptions, false);
     }
 }

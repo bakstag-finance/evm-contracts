@@ -27,6 +27,11 @@ interface IOtcMarketCore {
     error InvalidPricing(uint64 srcAmountSD, uint64 exchangeRateSD);
 
     /**
+     * @dev Offer with the provided ID does not exist.
+     */
+    error NonexistentOffer(bytes32 offerId);
+
+    /**
      * @dev Offer parameters.
      * - srcSellerAddress: The address of the seller on source chain.
      * - dstSellerAddress: The address of the seller on destination chain.

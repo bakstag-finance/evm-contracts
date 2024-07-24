@@ -188,8 +188,12 @@ contract OtcMarketTestHelper is TestHelperOz5 {
         verifyPackets(aEid, addressToBytes32(address(aOtcMarket)));
     }
 
-    function _cancel_offer(bytes32 offerId) internal {
-        vm.deal(srcSellerAddress, 10 ether);
+    function _prepare_cancel_offer(
+        uint256 srcAmountLD,
+        uint64 exchangeRateSD,
+        bool native
+    ) internal returns (IOtcMarketCreateOffer.CreateOfferReceipt memory createOfferReceipt) {
+        createOfferReceipt = _create_offer(srcAmountLD, exchangeRateSD, native);
 
         {
             EnforcedOptionParam[] memory enforcedOptionsArray = new EnforcedOptionParam[](1);
@@ -205,10 +209,9 @@ contract OtcMarketTestHelper is TestHelperOz5 {
             bOtcMarket.setEnforcedOptions(enforcedOptionsArray);
         }
 
-        // return fee
-        MessagingFee memory returnFee = bOtcMarket.quoteCancelOffer(offerId);
-
         {
+            MessagingFee memory returnFee = bOtcMarket.quoteCancelOffer(createOfferReceipt.offerId);
+
             EnforcedOptionParam[] memory enforcedOptionsArray = new EnforcedOptionParam[](1);
             enforcedOptionsArray[0] = EnforcedOptionParam(
                 bEid,
@@ -221,7 +224,10 @@ contract OtcMarketTestHelper is TestHelperOz5 {
 
             aOtcMarket.setEnforcedOptions(enforcedOptionsArray);
         }
+    }
 
+    function _cancel_offer(bytes32 offerId) internal {
+        MessagingFee memory returnFee = bOtcMarket.quoteCancelOffer(offerId);
         bytes memory extraSendOptions = OptionsBuilder.newOptions().addExecutorLzReceiveOption(
             0,
             uint128(returnFee.nativeFee)
