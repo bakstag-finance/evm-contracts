@@ -6,13 +6,13 @@ interface IOtcMarketCore {
      * @dev Omnichain message types.
      * - OfferCreated: The offer is created.
      * - OfferAccepted: The offer is accepted.
-     * - OfferCancelAppeal: The offer is appealed to be canceled.
+     * - OfferCancelOrder: The offer is ordered to be canceled.
      * - OfferCanceled: The offer is canceled.
      */
     enum Message {
         OfferCreated,
         OfferAccepted,
-        OfferCancelAppeal,
+        OfferCancelOrder,
         OfferCanceled
     }
 
@@ -25,6 +25,16 @@ interface IOtcMarketCore {
      * @dev The srcAmountSD and exchangeRateSD are too small to fulfill the offer.
      */
     error InvalidPricing(uint64 srcAmountSD, uint64 exchangeRateSD);
+
+    /**
+     * @dev Offer with the provided ID does not exist.
+     */
+    error NonexistentOffer(bytes32 offerId);
+
+    /**
+     * @dev Provided Endpoint ID does not match the required one.
+     */
+    error InvalidEid(uint32 required, uint32 provided);
 
     /**
      * @dev Offer parameters.

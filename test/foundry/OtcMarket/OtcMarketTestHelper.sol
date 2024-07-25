@@ -41,8 +41,10 @@ contract OtcMarketTestHelper is TestHelperOz5 {
     Token18D public aToken;
     Token18D public bToken;
 
-    uint128 public constant GAS_CREATE_OFFER = 190000;
-    uint128 public constant GAS_ACCEPT_OFFER = 100000;
+    uint128 public constant GAS_CREATE_OFFER = 180000;
+    uint128 public constant GAS_ACCEPT_OFFER = 180000;
+    uint128 public constant GAS_CANCEL_OFFER_ORDER = 500000;
+    uint128 public constant GAS_CANCEL_OFFER = 300000;
 
     address public srcBuyerAddress = makeAddr("srcBuyerAddress");
     address public dstBuyerAddress = makeAddr("dstbuyerAddress");
@@ -77,10 +79,7 @@ contract OtcMarketTestHelper is TestHelperOz5 {
         this.wireOApps(oapps);
     }
 
-    function _prepare_create_offer(uint256 srcAmountLD) public {
-        vm.deal(srcSellerAddress, 10 ether + srcAmountLD);
-
-        // set enforced options for a
+    function _set_enforced_create_offer() public {
         EnforcedOptionParam[] memory enforcedOptionsArray = new EnforcedOptionParam[](1);
         enforcedOptionsArray[0] = EnforcedOptionParam(
             bEid,
@@ -91,6 +90,56 @@ contract OtcMarketTestHelper is TestHelperOz5 {
                 .addExecutorOrderedExecutionOption()
         );
         aOtcMarket.setEnforcedOptions(enforcedOptionsArray);
+    }
+    function _set_enforced_accept_offer() public {
+        EnforcedOptionParam[] memory enforcedOptionsArray = new EnforcedOptionParam[](1);
+        enforcedOptionsArray[0] = EnforcedOptionParam(
+            aEid,
+            uint16(IOtcMarketCore.Message.OfferAccepted),
+            OptionsBuilder
+                .newOptions()
+                .addExecutorLzReceiveOption(GAS_ACCEPT_OFFER, 0)
+                .addExecutorOrderedExecutionOption()
+        );
+        bOtcMarket.setEnforcedOptions(enforcedOptionsArray);
+    }
+
+    function _set_enforced_cancel_offer(bytes32 offerId) public {
+        {
+            EnforcedOptionParam[] memory enforcedOptionsArray = new EnforcedOptionParam[](1);
+            enforcedOptionsArray[0] = EnforcedOptionParam(
+                aEid,
+                uint16(IOtcMarketCore.Message.OfferCanceled),
+                OptionsBuilder
+                    .newOptions()
+                    .addExecutorLzReceiveOption(GAS_CANCEL_OFFER, 0)
+                    .addExecutorOrderedExecutionOption()
+            );
+
+            bOtcMarket.setEnforcedOptions(enforcedOptionsArray);
+        }
+
+        {
+            MessagingFee memory returnFee = bOtcMarket.quoteCancelOffer(offerId);
+
+            EnforcedOptionParam[] memory enforcedOptionsArray = new EnforcedOptionParam[](1);
+            enforcedOptionsArray[0] = EnforcedOptionParam(
+                bEid,
+                uint16(IOtcMarketCore.Message.OfferCancelOrder),
+                OptionsBuilder
+                    .newOptions()
+                    .addExecutorLzReceiveOption(GAS_CANCEL_OFFER_ORDER, uint128(returnFee.nativeFee))
+                    .addExecutorOrderedExecutionOption()
+            );
+
+            aOtcMarket.setEnforcedOptions(enforcedOptionsArray);
+        }
+    }
+
+    function _prepare_create_offer(uint256 srcAmountLD) public {
+        vm.deal(srcSellerAddress, 10 ether + srcAmountLD);
+
+        _set_enforced_create_offer();
 
         // mint src token
         aToken.mint(srcSellerAddress, srcAmountLD);
@@ -140,18 +189,7 @@ contract OtcMarketTestHelper is TestHelperOz5 {
         vm.deal(dstBuyerAddress, 10 ether);
 
         // set enforced options for b
-        {
-            EnforcedOptionParam[] memory enforcedOptionsArray = new EnforcedOptionParam[](1);
-            enforcedOptionsArray[0] = EnforcedOptionParam(
-                aEid,
-                uint16(IOtcMarketCore.Message.OfferAccepted),
-                OptionsBuilder
-                    .newOptions()
-                    .addExecutorLzReceiveOption(GAS_ACCEPT_OFFER, 0)
-                    .addExecutorOrderedExecutionOption()
-            );
-            bOtcMarket.setEnforcedOptions(enforcedOptionsArray);
-        }
+        _set_enforced_accept_offer();
     }
 
     function _accept_offer(
@@ -183,6 +221,37 @@ contract OtcMarketTestHelper is TestHelperOz5 {
         }(params, fee);
 
         // deliver offer accepted message to aOtcMarket
+        verifyPackets(aEid, addressToBytes32(address(aOtcMarket)));
+    }
+
+    function _prepare_cancel_offer(
+        uint256 srcAmountLD,
+        uint64 exchangeRateSD,
+        bool native
+    ) internal returns (IOtcMarketCreateOffer.CreateOfferReceipt memory createOfferReceipt) {
+        createOfferReceipt = _create_offer(srcAmountLD, exchangeRateSD, native);
+
+        _set_enforced_cancel_offer(createOfferReceipt.offerId);
+    }
+
+    function _cancel_offer(bytes32 offerId) internal {
+        MessagingFee memory returnFee = bOtcMarket.quoteCancelOffer(offerId);
+        bytes memory extraSendOptions = OptionsBuilder.newOptions().addExecutorLzReceiveOption(
+            0,
+            uint128(returnFee.nativeFee)
+        );
+
+        MessagingFee memory fee = aOtcMarket.quoteCancelOfferOrder(
+            addressToBytes32(srcSellerAddress),
+            offerId,
+            extraSendOptions,
+            false
+        );
+
+        vm.prank(srcSellerAddress);
+        aOtcMarket.cancelOfferOrder{ value: fee.nativeFee }(offerId, fee, extraSendOptions);
+
+        verifyPackets(bEid, addressToBytes32(address(bOtcMarket)));
         verifyPackets(aEid, addressToBytes32(address(aOtcMarket)));
     }
 }

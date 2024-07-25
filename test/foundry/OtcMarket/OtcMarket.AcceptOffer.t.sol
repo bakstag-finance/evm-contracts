@@ -44,7 +44,7 @@ contract AcceptOffer is OtcMarketTestHelper {
         );
 
         // quote should revert with NonexistentOffer
-        vm.expectRevert(abi.encodeWithSelector(IOtcMarketAcceptOffer.NonexistentOffer.selector, mockOfferId));
+        vm.expectRevert(abi.encodeWithSelector(IOtcMarketCore.NonexistentOffer.selector, mockOfferId));
         aOtcMarket.quoteAcceptOffer(addressToBytes32(dstBuyerAddress), params, false);
     }
 
@@ -61,7 +61,7 @@ contract AcceptOffer is OtcMarketTestHelper {
         );
 
         // try to accept on a - quote should revert with InvalidEid
-        vm.expectRevert(abi.encodeWithSelector(IOtcMarketAcceptOffer.InvalidEid.selector, aEid, bEid));
+        vm.expectRevert(abi.encodeWithSelector(IOtcMarketCore.InvalidEid.selector, aEid, bEid));
         aOtcMarket.quoteAcceptOffer(addressToBytes32(dstBuyerAddress), params, false);
     }
 
@@ -224,7 +224,7 @@ contract AcceptOffer is OtcMarketTestHelper {
         uint64 exchangeRateSD,
         uint256 srcAcceptAmountLD
     ) public {
-        uint256 srcDecimalConversionRate = 10 ** (ERC20(address(aToken)).decimals() - aOtcMarket.SHARED_DECIMALS());
+        uint256 srcDecimalConversionRate = 10 ** (18 - aOtcMarket.SHARED_DECIMALS());
         srcAmountLD = bound(srcAmountLD, srcDecimalConversionRate, type(uint64).max);
         exchangeRateSD = uint64(bound(exchangeRateSD, 1, type(uint64).max));
         srcAcceptAmountLD = bound(srcAcceptAmountLD, srcDecimalConversionRate, srcAmountLD);

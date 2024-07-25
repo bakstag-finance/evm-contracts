@@ -7,13 +7,13 @@ import { OApp, Origin } from "@layerzerolabs/lz-evm-oapp-v2/contracts/oapp/OApp.
 import { ILayerZeroEndpointV2 } from "@layerzerolabs/lz-evm-protocol-v2/contracts/interfaces/ILayerZeroEndpointV2.sol";
 import { OAppOptionsType3 } from "@layerzerolabs/lz-evm-oapp-v2/contracts/oapp/libs/OAppOptionsType3.sol";
 
-import { IOtcMarket } from "./interfaces/IOtcMarket.sol";
+import { IOtcMarketCore } from "./interfaces/IOtcMarketCore.sol";
 import { Escrow } from "./Escrow.sol";
 
 /**
  * @dev See {IOtcMarket}.
  */
-abstract contract OtcMarketCore is IOtcMarket, OApp, OAppOptionsType3 {
+abstract contract OtcMarketCore is IOtcMarketCore, OApp, OAppOptionsType3 {
     uint8 public constant FEE = 100; // 1/100 = 1%
     uint8 public constant SHARED_DECIMALS = 6;
 
@@ -87,6 +87,10 @@ abstract contract OtcMarketCore is IOtcMarket, OApp, OAppOptionsType3 {
             _receiveOfferCreated(msgPayload);
         } else if (msgType == Message.OfferAccepted) {
             _receiveOfferAccepted(msgPayload);
+        } else if (msgType == Message.OfferCancelOrder) {
+            _receiveOfferCancelOrder(msgPayload);
+        } else if (msgType == Message.OfferCanceled) {
+            _receiveOfferCanceled(msgPayload);
         }
     }
 
@@ -100,4 +104,8 @@ abstract contract OtcMarketCore is IOtcMarket, OApp, OAppOptionsType3 {
     function _receiveOfferCreated(bytes calldata _msgPayload) internal virtual;
 
     function _receiveOfferAccepted(bytes calldata _msgPayload) internal virtual;
+
+    function _receiveOfferCancelOrder(bytes calldata _msgPayload) internal virtual;
+
+    function _receiveOfferCanceled(bytes calldata _msgPayload) internal virtual;
 }
