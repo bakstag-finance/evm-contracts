@@ -52,10 +52,9 @@ abstract contract OtcMarketAcceptOffer is IOtcMarketAcceptOffer, OtcMarketCore {
         );
         msgReceipt = _lzSend(offer.srcEid, payload, options, _fee, payable(msg.sender));
 
-        Transfer.transferFrom(dstTokenAddress, msg.sender, address(treasury), acceptOfferReceipt.feeLD);
+        Transfer.transferFrom(dstTokenAddress, address(treasury), acceptOfferReceipt.feeLD);
         Transfer.transferFrom(
             dstTokenAddress,
-            msg.sender,
             offer.dstSellerAddress.toAddress(),
             acceptOfferReceipt.dstAmountLD - acceptOfferReceipt.feeLD
         );

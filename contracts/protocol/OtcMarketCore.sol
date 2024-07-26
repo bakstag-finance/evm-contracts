@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
+import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
 import { OApp, Origin } from "@layerzerolabs/lz-evm-oapp-v2/contracts/oapp/OApp.sol";
@@ -22,7 +23,7 @@ abstract contract OtcMarketCore is IOtcMarketCore, OApp, OAppOptionsType3 {
 
     address public treasury;
 
-    constructor(address _treasury, address _endpoint, address _delegate) OApp(_endpoint, _delegate) {
+    constructor(address _treasury, address _endpoint, address _delegate) OApp(_endpoint, _delegate) Ownable(_delegate) {
         eid = ILayerZeroEndpointV2(endpoint).eid();
         escrow = new Escrow(address(this));
         treasury = _treasury;
