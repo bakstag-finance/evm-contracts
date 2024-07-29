@@ -27,7 +27,7 @@ abstract contract OtcMarketCreateOffer is IOtcMarketCreateOffer, OtcMarketCore {
         CreateOfferParams calldata _params,
         MessagingFee calldata _fee
     )
-        public
+        external
         payable
         virtual
         override

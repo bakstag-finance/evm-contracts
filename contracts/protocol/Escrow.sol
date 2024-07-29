@@ -8,7 +8,7 @@ import { Transfer } from "@layerzerolabs/lz-evm-protocol-v2/contracts/libs/Trans
 contract Escrow is Ownable {
     constructor(address _initialOwner) Ownable(_initialOwner) {}
 
-    function transfer(address _token, address _to, uint256 _value) public onlyOwner {
+    function transfer(address _token, address _to, uint256 _value) external onlyOwner {
         Transfer.nativeOrToken(_token, _to, _value);
     }
 

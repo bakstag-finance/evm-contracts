@@ -26,7 +26,9 @@ abstract contract OtcMarketCore is IOtcMarketCore, OApp, OAppOptionsType3 {
     constructor(address _treasury, address _endpoint, address _delegate) OApp(_endpoint, _delegate) Ownable(_delegate) {
         eid = ILayerZeroEndpointV2(endpoint).eid();
         escrow = new Escrow(address(this));
+
         treasury = _treasury;
+        emit TreasurySet(_treasury);
     }
 
     mapping(bytes32 offerId => Offer) public offers;
@@ -45,11 +47,12 @@ abstract contract OtcMarketCore is IOtcMarketCore, OApp, OAppOptionsType3 {
 
     function _payNative(uint256 _nativeFee) internal virtual override returns (uint256 nativeFee) {
         if (msg.value < _nativeFee) revert NotEnoughNative(msg.value);
-        return _nativeFee;
+        nativeFee = _nativeFee;
     }
 
     function setTreasury(address _treasury) public onlyOwner {
         treasury = _treasury;
+        emit TreasurySet(treasury);
     }
 
     function hashOffer(
@@ -60,10 +63,8 @@ abstract contract OtcMarketCore is IOtcMarketCore, OApp, OAppOptionsType3 {
         bytes32 _dstTokenAddress,
         uint64 _exchangeRateSD
     ) public pure virtual override returns (bytes32 offerId) {
-        return (
-            keccak256(
-                abi.encodePacked(_advertiser, _srcEid, _dstEid, _srcTokenAddress, _dstTokenAddress, _exchangeRateSD)
-            )
+        offerId = keccak256(
+            abi.encodePacked(_advertiser, _srcEid, _dstEid, _srcTokenAddress, _dstTokenAddress, _exchangeRateSD)
         );
     }
 
@@ -76,12 +77,14 @@ abstract contract OtcMarketCore is IOtcMarketCore, OApp, OAppOptionsType3 {
     }
 
     function _lzReceive(
-        Origin calldata /*_origin*/,
+        Origin calldata _origin,
         bytes32 /*_guid */,
         bytes calldata _payload,
         address /*_executor*/,
         bytes calldata /*_extraData*/
     ) internal virtual override {
+        _acceptNonce(_origin.srcEid, _origin.sender, _origin.nonce);
+
         (Message msgType, bytes calldata msgPayload) = _decodePayload(_payload);
 
         if (msgType == Message.OfferCreated) {

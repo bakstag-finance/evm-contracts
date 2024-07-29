@@ -11,7 +11,7 @@ library AmountCast {
      * @return amountLD The amount in local decimals.
      */
     function toLD(uint64 _amountSD, uint256 _decimalConversionRate) internal pure returns (uint256 amountLD) {
-        return _amountSD * _decimalConversionRate;
+        amountLD = _amountSD * _decimalConversionRate;
     }
 
     /**
@@ -21,7 +21,7 @@ library AmountCast {
      * @return amountSD The amount in shared decimals.
      */
     function toSD(uint256 _amountLD, uint256 _decimalConversionRate) internal pure returns (uint64 amountSD) {
-        return SafeCast.toUint64(_amountLD / _decimalConversionRate);
+        amountSD = SafeCast.toUint64(_amountLD / _decimalConversionRate);
     }
 
     /**
