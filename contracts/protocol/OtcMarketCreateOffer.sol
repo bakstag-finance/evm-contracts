@@ -66,8 +66,11 @@ abstract contract OtcMarketCreateOffer is IOtcMarketCreateOffer, OtcMarketCore {
         );
         emit OfferCreated(offerId, offers[offerId]);
 
-        (bytes memory payload, bytes memory options) = _buildCreateOfferMsgAndOptions(offerId, offers[offerId]);
-        msgReceipt = _lzSend(_params.dstEid, payload, options, _fee, payable(msg.sender));
+        if (eid != _params.dstEid) {
+            // crosschain offer
+            (bytes memory payload, bytes memory options) = _buildCreateOfferMsgAndOptions(offerId, offers[offerId]);
+            msgReceipt = _lzSend(_params.dstEid, payload, options, _fee, payable(msg.sender));
+        }
 
         createOfferReceipt = CreateOfferReceipt(offerId, srcAmountLD);
 
