@@ -8,25 +8,25 @@ library Transfer {
     using SafeERC20 for IERC20;
 
     error NativeTransferFailed(address to, uint256 value);
+    error InvalidReceiver(address receiver);
 
     /**
      * @dev Internal function to transfer tokens (from to) or native value (supplied with a function call).
      * @param _tokenAddress The address of the token to transfer (set to address(0) in case of native value).
-     * @param _from The sender.
      * @param _to The receiver.
      * @param _value The amount to transfer.
      */
-    function transferFrom(address _tokenAddress, address _from, address _to, uint256 _value) internal {
+    function transferFrom(address _tokenAddress, address _to, uint256 _value) internal {
         if (_tokenAddress == address(0)) {
             // transfer native
+            if (_to == address(0)) revert InvalidReceiver(address(0));
 
-            if (_to == address(0)) revert NativeTransferFailed(_to, _value);
             (bool success, ) = _to.call{ value: _value }("");
             if (!success) revert NativeTransferFailed(_to, _value);
         } else {
             // transferFrom token
 
-            IERC20(_tokenAddress).safeTransferFrom(_from, _to, _value);
+            IERC20(_tokenAddress).safeTransferFrom(msg.sender, _to, _value);
         }
     }
 }

@@ -33,7 +33,7 @@ interface IOtcMarketCancelOffer is IOtcMarketCore {
      *  - fee: The LayerZero fee incurred for the message.
      *
      */
-    function cancelOfferOrder(
+    function cancelOffer(
         bytes32 _offerId,
         MessagingFee calldata _fee,
         bytes calldata _extraSendOptions

@@ -26,9 +26,10 @@ abstract contract OtcMarketAcceptOffer is IOtcMarketAcceptOffer, OtcMarketCore {
         AcceptOfferParams calldata _params,
         MessagingFee calldata _fee
     )
-        public
+        external
         payable
         virtual
+        override
         returns (MessagingReceipt memory msgReceipt, AcceptOfferReceipt memory acceptOfferReceipt)
     {
         _validateAcceptOffer(_params);
@@ -52,10 +53,9 @@ abstract contract OtcMarketAcceptOffer is IOtcMarketAcceptOffer, OtcMarketCore {
         );
         msgReceipt = _lzSend(offer.srcEid, payload, options, _fee, payable(msg.sender));
 
-        Transfer.transferFrom(dstTokenAddress, msg.sender, address(treasury), acceptOfferReceipt.feeLD);
+        Transfer.transferFrom(dstTokenAddress, treasury, acceptOfferReceipt.feeLD);
         Transfer.transferFrom(
             dstTokenAddress,
-            msg.sender,
             offer.dstSellerAddress.toAddress(),
             acceptOfferReceipt.dstAmountLD - acceptOfferReceipt.feeLD
         );

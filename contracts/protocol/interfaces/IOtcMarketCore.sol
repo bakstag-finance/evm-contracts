@@ -37,6 +37,11 @@ interface IOtcMarketCore {
     error InvalidEid(uint32 required, uint32 provided);
 
     /**
+     * @dev Emitted when a treasury is set.
+     */
+    event TreasurySet(address treasury);
+
+    /**
      * @dev Offer parameters.
      * - srcSellerAddress: The address of the seller on source chain.
      * - dstSellerAddress: The address of the seller on destination chain.

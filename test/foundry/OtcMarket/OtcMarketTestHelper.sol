@@ -23,7 +23,6 @@ import { IOtcMarketCreateOffer } from "../../../contracts/protocol/interfaces/IO
 import { IOtcMarketAcceptOffer } from "../../../contracts/protocol/interfaces/IOtcMarketAcceptOffer.sol";
 
 import { OtcMarket } from "../../../contracts/protocol/OtcMarket.sol";
-import { Escrow } from "../../../contracts/protocol/Escrow.sol";
 
 contract OtcMarketTestHelper is TestHelperOz5 {
     using OptionsBuilder for bytes;
@@ -41,13 +40,13 @@ contract OtcMarketTestHelper is TestHelperOz5 {
     Token18D public aToken;
     Token18D public bToken;
 
-    uint128 public constant GAS_CREATE_OFFER = 180000;
-    uint128 public constant GAS_ACCEPT_OFFER = 180000;
-    uint128 public constant GAS_CANCEL_OFFER_ORDER = 500000;
-    uint128 public constant GAS_CANCEL_OFFER = 300000;
+    uint128 public constant GAS_CREATE_OFFER = 200000;
+    uint128 public constant GAS_ACCEPT_OFFER = 100000;
+    uint128 public constant GAS_CANCEL_OFFER_ORDER = 450000;
+    uint128 public constant GAS_CANCEL_OFFER = 100000;
 
     address public srcBuyerAddress = makeAddr("srcBuyerAddress");
-    address public dstBuyerAddress = makeAddr("dstbuyerAddress");
+    address public dstBuyerAddress = makeAddr("dstBuyerAddress");
     address public srcSellerAddress = makeAddr("srcSellerAddress");
     address public dstSellerAddress = makeAddr("dstSellerAddress");
 
@@ -249,7 +248,7 @@ contract OtcMarketTestHelper is TestHelperOz5 {
         );
 
         vm.prank(srcSellerAddress);
-        aOtcMarket.cancelOfferOrder{ value: fee.nativeFee }(offerId, fee, extraSendOptions);
+        aOtcMarket.cancelOffer{ value: fee.nativeFee }(offerId, fee, extraSendOptions);
 
         verifyPackets(bEid, addressToBytes32(address(bOtcMarket)));
         verifyPackets(aEid, addressToBytes32(address(aOtcMarket)));

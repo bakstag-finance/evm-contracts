@@ -21,11 +21,11 @@ abstract contract OtcMarketCancelOffer is IOtcMarketCancelOffer, OtcMarketCore {
 
     using AmountCast for uint64;
 
-    function cancelOfferOrder(
+    function cancelOffer(
         bytes32 _offerId,
         MessagingFee calldata _fee,
         bytes calldata _extraSendOptions
-    ) public payable virtual override returns (MessagingReceipt memory msgReceipt) {
+    ) external payable virtual override returns (MessagingReceipt memory msgReceipt) {
         _validateCancelOffer(msg.sender.toBytes32(), _offerId);
 
         Offer storage offer = offers[_offerId];

@@ -27,7 +27,7 @@ abstract contract OtcMarketCreateOffer is IOtcMarketCreateOffer, OtcMarketCore {
         CreateOfferParams calldata _params,
         MessagingFee calldata _fee
     )
-        public
+        external
         payable
         virtual
         override
@@ -71,7 +71,7 @@ abstract contract OtcMarketCreateOffer is IOtcMarketCreateOffer, OtcMarketCore {
 
         createOfferReceipt = CreateOfferReceipt(offerId, srcAmountLD);
 
-        Transfer.transferFrom(srcTokenAddress, msg.sender, address(escrow), srcAmountLD);
+        Transfer.transferFrom(srcTokenAddress, address(escrow), srcAmountLD);
     }
 
     function quoteCreateOffer(
