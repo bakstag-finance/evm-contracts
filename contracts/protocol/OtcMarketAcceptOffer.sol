@@ -46,12 +46,21 @@ abstract contract OtcMarketAcceptOffer is IOtcMarketAcceptOffer, OtcMarketCore {
         bytes32 dstBuyerAddress = msg.sender.toBytes32();
         emit OfferAccepted(_params.offerId, _params.srcAmountSD, _params.srcBuyerAddress, dstBuyerAddress);
 
-        (bytes memory payload, bytes memory options) = _buildAcceptOfferMsgAndOptions(
-            dstBuyerAddress,
-            offer.srcEid,
-            _params
-        );
-        msgReceipt = _lzSend(offer.srcEid, payload, options, _fee, payable(msg.sender));
+        if (offer.srcEid != offer.dstEid) {
+            // crosschain offer
+            (bytes memory payload, bytes memory options) = _buildAcceptOfferMsgAndOptions(
+                dstBuyerAddress,
+                offer.srcEid,
+                _params
+            );
+            msgReceipt = _lzSend(offer.srcEid, payload, options, _fee, payable(msg.sender));
+        } else {
+            // monochain offer
+            address srcTokenAddress = offer.srcTokenAddress.toAddress();
+
+            uint256 srcAmountLD = _params.srcAmountSD.toLD(_getDecimalConversionRate(srcTokenAddress));
+            escrow.transfer(srcTokenAddress, _params.srcBuyerAddress.toAddress(), srcAmountLD);
+        }
 
         Transfer.transferFrom(dstTokenAddress, treasury, acceptOfferReceipt.feeLD);
         Transfer.transferFrom(
@@ -69,13 +78,18 @@ abstract contract OtcMarketAcceptOffer is IOtcMarketAcceptOffer, OtcMarketCore {
         _validateAcceptOffer(_params); // revert
         Offer storage offer = offers[_params.offerId];
 
-        (bytes memory payload, bytes memory options) = _buildAcceptOfferMsgAndOptions(
-            _dstBuyerAddress,
-            offer.srcEid,
-            _params
-        ); // revert
-
-        fee = _quote(offer.srcEid, payload, options, _payInLzToken);
+        
+        if (offer.dstEid != offer.srcEid) {
+            (bytes memory payload, bytes memory options) = _buildAcceptOfferMsgAndOptions(
+                _dstBuyerAddress,
+                offer.srcEid,
+                _params
+            ); // revert
+            fee = _quote(offer.srcEid, payload, options, _payInLzToken);
+        }else{
+            fee = MessagingFee(0,0);
+        }
+        
         acceptOfferReceipt = _toDstAmount(_params.srcAmountSD, offer.exchangeRateSD, offer.dstTokenAddress.toAddress()); // revert
     }
 
@@ -150,11 +164,12 @@ abstract contract OtcMarketAcceptOffer is IOtcMarketAcceptOffer, OtcMarketCore {
         );
 
         Offer storage offer = offers[offerId];
+        address srcTokenAddress = offer.srcTokenAddress.toAddress();
 
         offer.srcAmountSD -= srcAmountSD;
         emit OfferAccepted(offerId, srcAmountSD, srcBuyerAddress, dstBuyerAddress);
 
-        uint256 srcAmountLD = srcAmountSD.toLD(_getDecimalConversionRate(offer.srcTokenAddress.toAddress()));
-        escrow.transfer(offer.srcTokenAddress.toAddress(), srcBuyerAddress.toAddress(), srcAmountLD);
+        uint256 srcAmountLD = srcAmountSD.toLD(_getDecimalConversionRate(srcTokenAddress));
+        escrow.transfer(srcTokenAddress, srcBuyerAddress.toAddress(), srcAmountLD);
     }
 }

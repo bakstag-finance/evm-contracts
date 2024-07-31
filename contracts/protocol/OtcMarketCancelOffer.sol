@@ -30,12 +30,27 @@ abstract contract OtcMarketCancelOffer is IOtcMarketCancelOffer, OtcMarketCore {
 
         Offer storage offer = offers[_offerId];
 
-        (bytes memory payload, bytes memory options) = _buildCancelOfferOrderMsgAndOptions(
-            offer.dstEid,
-            _offerId,
-            _extraSendOptions
-        );
-        msgReceipt = _lzSend(offer.dstEid, payload, options, _fee, payable(msg.sender));
+        if (offer.srcEid != offer.dstEid) {
+            // crosschain offer
+            (bytes memory payload, bytes memory options) = _buildCancelOfferOrderMsgAndOptions(
+                offer.dstEid,
+                _offerId,
+                _extraSendOptions
+            );
+            msgReceipt = _lzSend(offer.dstEid, payload, options, _fee, payable(msg.sender));
+        } else {
+            // monochain offer
+            address srcTokenAddress = offer.srcTokenAddress.toAddress();
+
+            escrow.transfer(
+                srcTokenAddress,
+                offer.srcSellerAddress.toAddress(),
+                offer.srcAmountSD.toLD(_getDecimalConversionRate(srcTokenAddress))
+            );
+
+            emit OfferCanceled(_offerId);
+            delete offers[_offerId];
+        }
     }
 
     function quoteCancelOfferOrder(

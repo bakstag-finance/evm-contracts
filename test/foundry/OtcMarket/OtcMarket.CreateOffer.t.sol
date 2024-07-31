@@ -43,7 +43,7 @@ contract CreateOffer is OtcMarketTestHelper {
 
         // should emit OfferCreated
         vm.recordLogs();
-        IOtcMarketCreateOffer.CreateOfferReceipt memory receipt = _create_offer(srcAmountLD, exchangeRateSD, false);
+        IOtcMarketCreateOffer.CreateOfferReceipt memory receipt = _create_offer(srcAmountLD, exchangeRateSD, false, false);
 
         bytes32 signature = keccak256(
             "OfferCreated(bytes32,(bytes32,bytes32,uint32,uint32,bytes32,bytes32,uint64,uint64))"
@@ -79,7 +79,7 @@ contract CreateOffer is OtcMarketTestHelper {
         exchangeRateSD = uint64(bound(exchangeRateSD, 1, type(uint64).max));
 
         // should store offer
-        IOtcMarketCreateOffer.CreateOfferReceipt memory receipt = _create_offer(srcAmountLD, exchangeRateSD, false);
+        IOtcMarketCreateOffer.CreateOfferReceipt memory receipt = _create_offer(srcAmountLD, exchangeRateSD, false, false);
 
         (
             bytes32 aAdversiter,
@@ -111,7 +111,7 @@ contract CreateOffer is OtcMarketTestHelper {
         uint256 srcEscrowInitialBalance = ERC20(address(aToken)).balanceOf(address(aOtcMarket.escrow()));
 
         // should update balances
-        IOtcMarketCreateOffer.CreateOfferReceipt memory receipt = _create_offer(srcAmountLD, exchangeRateSD, false);
+        IOtcMarketCreateOffer.CreateOfferReceipt memory receipt = _create_offer(srcAmountLD, exchangeRateSD, false, false);
 
         uint256 srcSellerUpdatedBalance = ERC20(address(aToken)).balanceOf(srcSellerAddress);
         uint256 srcEscrowUpdatedBalance = ERC20(address(aToken)).balanceOf(address(aOtcMarket.escrow()));
@@ -172,7 +172,7 @@ contract CreateOffer is OtcMarketTestHelper {
 
         // create an offer on aOtcMarket
         vm.recordLogs();
-        IOtcMarketCreateOffer.CreateOfferReceipt memory receipt = _create_offer(srcAmountLD, exchangeRateSD, false);
+        IOtcMarketCreateOffer.CreateOfferReceipt memory receipt = _create_offer(srcAmountLD, exchangeRateSD, false, false);
 
         // verify that OfferCreated event was emitted
         {
@@ -229,7 +229,7 @@ contract CreateOffer is OtcMarketTestHelper {
 
     function test_RevertIf_OfferAlreadyExists() public {
         // create an offer
-        IOtcMarketCreateOffer.CreateOfferReceipt memory receipt = _create_offer(SRC_AMOUNT_LD, EXCHANGE_RATE_SD, false);
+        IOtcMarketCreateOffer.CreateOfferReceipt memory receipt = _create_offer(SRC_AMOUNT_LD, EXCHANGE_RATE_SD, false, false);
 
         // quote fee should revert with OfferAlreadyExists
         IOtcMarketCreateOffer.CreateOfferParams memory params = IOtcMarketCreateOffer.CreateOfferParams(
@@ -345,4 +345,28 @@ contract CreateOffer is OtcMarketTestHelper {
         vm.expectRevert();
         aOtcMarket.quoteCreateOffer(addressToBytes32(srcSellerAddress), params, false);
     }
+
+
+    function testFuzz_MonochainUpdateBalances(uint256 srcAmountLD, uint64 exchangeRateSD) public {
+        uint256 srcDecimalConversionRate = 10 ** (ERC20(address(aToken)).decimals() - aOtcMarket.SHARED_DECIMALS());
+        srcAmountLD = bound(srcAmountLD, srcDecimalConversionRate, type(uint64).max);
+        exchangeRateSD = uint64(bound(exchangeRateSD, 1, type(uint64).max));
+
+        uint256 srcSellerInitialBalance = srcAmountLD;
+        uint256 srcEscrowInitialBalance = ERC20(address(aToken)).balanceOf(address(aOtcMarket.escrow()));
+
+        // should update balances
+        IOtcMarketCreateOffer.CreateOfferReceipt memory receipt = _create_offer(srcAmountLD, exchangeRateSD, false,  true);
+
+        (, , uint32 srcEid, uint32 dstEid, , , , ) = aOtcMarket.offers(receipt.offerId);
+
+        assertEq(srcEid, dstEid, "srcEid == dstEid");
+
+        uint256 srcSellerUpdatedBalance = ERC20(address(aToken)).balanceOf(srcSellerAddress);
+        uint256 srcEscrowUpdatedBalance = ERC20(address(aToken)).balanceOf(address(aOtcMarket.escrow()));
+
+        assertEq(srcSellerUpdatedBalance, srcSellerInitialBalance - receipt.srcAmountLD, "srcSeller balance");
+        assertEq(srcEscrowUpdatedBalance, srcEscrowInitialBalance + receipt.srcAmountLD, "srcEscrow balance");
+    }
+    
 }
