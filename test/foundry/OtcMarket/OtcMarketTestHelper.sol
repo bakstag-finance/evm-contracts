@@ -151,20 +151,21 @@ contract OtcMarketTestHelper is TestHelperOz5 {
     function _create_offer(
         uint256 srcAmountLD,
         uint64 exchangeRateSD,
-        bool native
+        bool native,
+        bool monochain
     ) internal returns (IOtcMarketCreateOffer.CreateOfferReceipt memory receipt) {
         _prepare_create_offer(srcAmountLD);
 
         // quote fee
         IOtcMarketCreateOffer.CreateOfferParams memory params = IOtcMarketCreateOffer.CreateOfferParams(
             addressToBytes32(dstSellerAddress),
-            bEid,
+            monochain ? aEid : bEid,
             native ? addressToBytes32(address(0)) : addressToBytes32(address(aToken)),
             native ? addressToBytes32(address(0)) : addressToBytes32(address(bToken)),
             srcAmountLD,
             exchangeRateSD
         );
-
+        
         (MessagingFee memory fee, ) = aOtcMarket.quoteCreateOffer(addressToBytes32(srcSellerAddress), params, false);
 
         // create an offer
@@ -173,28 +174,34 @@ contract OtcMarketTestHelper is TestHelperOz5 {
             params,
             fee
         );
-
-        // deliver offer created message to bOtcMarket
-        verifyPackets(bEid, addressToBytes32(address(bOtcMarket)));
+        if(!monochain){
+            // deliver offer created message to bOtcMarket
+            verifyPackets(bEid, addressToBytes32(address(bOtcMarket)));
+        }
     }
 
     function _prepare_accept_offer(
         uint256 srcAmountLD,
         uint64 exchangeRateSD,
-        bool native
+        bool native,
+        bool monochain
     ) public returns (IOtcMarketCreateOffer.CreateOfferReceipt memory createOfferReceipt) {
-        createOfferReceipt = _create_offer(srcAmountLD, exchangeRateSD, native);
+        createOfferReceipt = _create_offer(srcAmountLD, exchangeRateSD, native, monochain);
 
         vm.deal(dstBuyerAddress, 10 ether);
 
-        // set enforced options for b
-        _set_enforced_accept_offer();
+        if(!monochain){
+            // set enforced options for b
+            _set_enforced_accept_offer();
+        }
+        
     }
 
     function _accept_offer(
         bytes32 offerId,
         uint256 srcAmountSD,
-        bool native
+        bool native,
+        bool monochain
     ) internal returns (IOtcMarketAcceptOffer.AcceptOfferReceipt memory receipt) {
         IOtcMarketAcceptOffer.AcceptOfferParams memory params = IOtcMarketAcceptOffer.AcceptOfferParams(
             offerId,
@@ -202,7 +209,8 @@ contract OtcMarketTestHelper is TestHelperOz5 {
             addressToBytes32(srcBuyerAddress)
         );
 
-        (MessagingFee memory fee, IOtcMarketAcceptOffer.AcceptOfferReceipt memory quoteReceipt) = bOtcMarket
+        OtcMarket otcMarket = monochain ? aOtcMarket : bOtcMarket;
+        (MessagingFee memory fee, IOtcMarketAcceptOffer.AcceptOfferReceipt memory quoteReceipt) = otcMarket
             .quoteAcceptOffer(addressToBytes32(dstBuyerAddress), params, false);
 
         if (native) {
@@ -210,47 +218,64 @@ contract OtcMarketTestHelper is TestHelperOz5 {
         } else {
             bToken.mint(dstBuyerAddress, quoteReceipt.dstAmountLD);
             vm.prank(dstBuyerAddress);
-            bToken.approve(address(bOtcMarket), quoteReceipt.dstAmountLD);
+            bToken.approve(address(otcMarket), quoteReceipt.dstAmountLD);
         }
 
         // accept offer
         vm.prank(dstBuyerAddress);
-        (, receipt) = bOtcMarket.acceptOffer{
+        (, receipt) = otcMarket.acceptOffer{
             value: native ? fee.nativeFee + quoteReceipt.dstAmountLD : fee.nativeFee
         }(params, fee);
 
-        // deliver offer accepted message to aOtcMarket
-        verifyPackets(aEid, addressToBytes32(address(aOtcMarket)));
+        if(!monochain){
+            // deliver offer accepted message to aOtcMarket
+            verifyPackets(aEid, addressToBytes32(address(aOtcMarket)));
+        }
     }
 
     function _prepare_cancel_offer(
         uint256 srcAmountLD,
         uint64 exchangeRateSD,
-        bool native
+        bool native,
+        bool monochain 
     ) internal returns (IOtcMarketCreateOffer.CreateOfferReceipt memory createOfferReceipt) {
-        createOfferReceipt = _create_offer(srcAmountLD, exchangeRateSD, native);
+        createOfferReceipt = _create_offer(srcAmountLD, exchangeRateSD, native, monochain);
 
-        _set_enforced_cancel_offer(createOfferReceipt.offerId);
+        if(!monochain){
+            _set_enforced_cancel_offer(createOfferReceipt.offerId);
+        }
     }
 
-    function _cancel_offer(bytes32 offerId) internal {
-        MessagingFee memory returnFee = bOtcMarket.quoteCancelOffer(offerId);
-        bytes memory extraSendOptions = OptionsBuilder.newOptions().addExecutorLzReceiveOption(
-            0,
-            uint128(returnFee.nativeFee)
-        );
+    function _cancel_offer(bytes32 offerId, bool monochain) internal {
 
-        MessagingFee memory fee = aOtcMarket.quoteCancelOfferOrder(
-            addressToBytes32(srcSellerAddress),
-            offerId,
-            extraSendOptions,
-            false
-        );
+        MessagingFee memory fee;
+        bytes memory extraSendOptions;
 
+        if(!monochain){
+            MessagingFee memory returnFee = bOtcMarket.quoteCancelOffer(offerId);
+            extraSendOptions = OptionsBuilder.newOptions().addExecutorLzReceiveOption(
+                0,
+                uint128(returnFee.nativeFee)
+            );
+
+            fee = aOtcMarket.quoteCancelOfferOrder(
+                addressToBytes32(srcSellerAddress),
+                offerId,
+                extraSendOptions,
+                false
+            );
+        }else{
+            fee = MessagingFee(0, 0);
+            extraSendOptions = bytes("");
+        }
+        
+        
         vm.prank(srcSellerAddress);
         aOtcMarket.cancelOffer{ value: fee.nativeFee }(offerId, fee, extraSendOptions);
 
-        verifyPackets(bEid, addressToBytes32(address(bOtcMarket)));
-        verifyPackets(aEid, addressToBytes32(address(aOtcMarket)));
+        if(!monochain){
+            verifyPackets(bEid, addressToBytes32(address(bOtcMarket)));
+            verifyPackets(aEid, addressToBytes32(address(aOtcMarket)));
+        }
     }
 }

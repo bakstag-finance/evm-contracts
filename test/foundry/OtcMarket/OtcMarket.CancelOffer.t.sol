@@ -39,12 +39,13 @@ contract CancelOffer is OtcMarketTestHelper {
         IOtcMarketCreateOffer.CreateOfferReceipt memory createOfferReceipt = _prepare_cancel_offer(
             SRC_AMOUNT_LD,
             EXCHANGE_RATE_SD,
+            false,
             false
         );
 
         // cancel offer
         vm.recordLogs();
-        _cancel_offer(createOfferReceipt.offerId);
+        _cancel_offer(createOfferReceipt.offerId, false);
 
         bytes32 signature = keccak256("OfferCanceled(bytes32)");
         Vm.Log[] memory entries = vm.getRecordedLogs();
@@ -64,6 +65,7 @@ contract CancelOffer is OtcMarketTestHelper {
         IOtcMarketCreateOffer.CreateOfferReceipt memory createOfferReceipt = _prepare_cancel_offer(
             SRC_AMOUNT_LD,
             EXCHANGE_RATE_SD,
+            false,
             false
         );
         MessagingFee memory returnFee = bOtcMarket.quoteCancelOffer(createOfferReceipt.offerId);
@@ -81,6 +83,7 @@ contract CancelOffer is OtcMarketTestHelper {
         IOtcMarketCreateOffer.CreateOfferReceipt memory createOfferReceipt = _prepare_cancel_offer(
             SRC_AMOUNT_LD,
             EXCHANGE_RATE_SD,
+            false,
             false
         );
         MessagingFee memory returnFee = bOtcMarket.quoteCancelOffer(createOfferReceipt.offerId);
@@ -103,6 +106,7 @@ contract CancelOffer is OtcMarketTestHelper {
         IOtcMarketCreateOffer.CreateOfferReceipt memory createOfferReceipt = _prepare_cancel_offer(
             SRC_AMOUNT_LD,
             EXCHANGE_RATE_SD,
+            false,
             false
         );
         MessagingFee memory returnFee = bOtcMarket.quoteCancelOffer(createOfferReceipt.offerId);
@@ -131,6 +135,7 @@ contract CancelOffer is OtcMarketTestHelper {
         IOtcMarketCreateOffer.CreateOfferReceipt memory createOfferReceipt = _create_offer(
             SRC_AMOUNT_LD,
             EXCHANGE_RATE_SD,
+            false,
             false
         );
 
@@ -209,12 +214,13 @@ contract CancelOffer is OtcMarketTestHelper {
         IOtcMarketCreateOffer.CreateOfferReceipt memory createOfferReceipt = _prepare_cancel_offer(
             srcAmountLD,
             exchangeRateSD,
+            false,
             false
         );
 
         // accept offer
         vm.deal(dstBuyerAddress, 10 ether);
-        _accept_offer(createOfferReceipt.offerId, srcAcceptAmountSD, false);
+        _accept_offer(createOfferReceipt.offerId, srcAcceptAmountSD, false, false);
         verifyPackets(aEid, addressToBytes32(address(aOtcMarket)));
 
         (, , , , , , uint64 remainedSrcAmount, ) = aOtcMarket.offers(createOfferReceipt.offerId);
@@ -226,7 +232,7 @@ contract CancelOffer is OtcMarketTestHelper {
 
         //cancel offer
 
-        _cancel_offer(createOfferReceipt.offerId);
+        _cancel_offer(createOfferReceipt.offerId, false);
         verifyPackets(bEid, addressToBytes32(address(bOtcMarket)));
         verifyPackets(aEid, addressToBytes32(address(aOtcMarket)));
 
@@ -271,12 +277,13 @@ contract CancelOffer is OtcMarketTestHelper {
         IOtcMarketCreateOffer.CreateOfferReceipt memory createOfferReceipt = _prepare_cancel_offer(
             srcAmountLD,
             exchangeRateSD,
-            true
+            true,
+            false
         );
 
         // accept offer
         vm.deal(dstBuyerAddress, 10 ether);
-        _accept_offer(createOfferReceipt.offerId, srcAcceptAmountSD, true);
+        _accept_offer(createOfferReceipt.offerId, srcAcceptAmountSD, true, false);
         verifyPackets(aEid, addressToBytes32(address(aOtcMarket)));
 
         (, , , , , , uint64 remainedSrcAmount, ) = aOtcMarket.offers(createOfferReceipt.offerId);
@@ -288,7 +295,7 @@ contract CancelOffer is OtcMarketTestHelper {
 
         //cancel offer
 
-        _cancel_offer(createOfferReceipt.offerId);
+        _cancel_offer(createOfferReceipt.offerId, false);
         verifyPackets(bEid, addressToBytes32(address(bOtcMarket)));
         verifyPackets(aEid, addressToBytes32(address(aOtcMarket)));
 
@@ -313,6 +320,58 @@ contract CancelOffer is OtcMarketTestHelper {
             (address(srcSellerAddress).balance - srcSellerInitialBalance).removeDust(srcDecimalConversionRate),
             srcEscrowInitialBalance,
             srcDecimalConversionRate,
+            "funds rerturned to seller"
+        );
+    }
+
+    function testFuzz_MonochainUpdateBalances(uint256 srcAmountLD, uint64 exchangeRateSD, uint256 srcAcceptAmountLD) public {
+        uint256 srcDecimalConversionRate = 10 ** (ERC20(address(aToken)).decimals() - aOtcMarket.SHARED_DECIMALS());
+        srcAmountLD = bound(srcAmountLD, srcDecimalConversionRate * 2, type(uint64).max);
+        exchangeRateSD = uint64(bound(exchangeRateSD, 1, type(uint64).max));
+        srcAcceptAmountLD = bound(srcAcceptAmountLD, srcDecimalConversionRate, srcAmountLD / 2);
+        uint64 srcAcceptAmountSD = srcAcceptAmountLD.toSD(srcDecimalConversionRate);
+
+        
+        // create offer
+        IOtcMarketCreateOffer.CreateOfferReceipt memory createOfferReceipt = _prepare_cancel_offer(
+            srcAmountLD,
+            exchangeRateSD,
+            false,
+            true
+        );
+
+        // accept offer
+        vm.deal(dstBuyerAddress, 10 ether);
+        _accept_offer(createOfferReceipt.offerId, srcAcceptAmountSD, false, true);
+        
+        (, , , , , , uint64 remainedSrcAmount, ) = aOtcMarket.offers(createOfferReceipt.offerId);
+
+        uint256 srcEscrowInitialBalance = ERC20(address(aToken)).balanceOf(address(aOtcMarket.escrow()));
+        uint256 srcSellerInitialBalance = ERC20(address(aToken)).balanceOf(address(srcSellerAddress));
+
+        assertEq(remainedSrcAmount, srcEscrowInitialBalance.toSD(srcDecimalConversionRate), "initial escrow balance");
+
+        //cancel offer
+
+        _cancel_offer(createOfferReceipt.offerId, true);
+        
+        // bytes32 srcSellerAddress;
+        // bytes32 dstSellerAddress;
+        // uint32 srcEid;
+        // uint32 dstEid;
+        // bytes32 srcTokenAddress;
+        // bytes32 dstTokenAddress;
+        // uint64 srcAmountSD;
+        // uint64 exchangeRateSD;
+        (, , , , , , uint64 offerSrcAmount, ) = aOtcMarket.offers(createOfferReceipt.offerId);
+
+        assertEq(offerSrcAmount, 0, "offer existance");
+
+        assertEq(ERC20(address(aToken)).balanceOf(address(aOtcMarket.escrow())), 0, "escrow balance is empty");
+
+        assertEq(
+            ERC20(address(aToken)).balanceOf(address(srcSellerAddress)) - srcSellerInitialBalance,
+            srcEscrowInitialBalance,
             "funds rerturned to seller"
         );
     }

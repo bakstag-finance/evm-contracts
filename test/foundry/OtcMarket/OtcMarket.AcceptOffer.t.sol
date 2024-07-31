@@ -52,7 +52,7 @@ contract AcceptOffer is OtcMarketTestHelper {
         vm.deal(dstBuyerAddress, 10 ether);
 
         // create offer a -> b
-        IOtcMarketCreateOffer.CreateOfferReceipt memory receipt = _create_offer(SRC_AMOUNT_LD, EXCHANGE_RATE_SD, false);
+        IOtcMarketCreateOffer.CreateOfferReceipt memory receipt = _create_offer(SRC_AMOUNT_LD, EXCHANGE_RATE_SD, false, false);
 
         IOtcMarketAcceptOffer.AcceptOfferParams memory params = IOtcMarketAcceptOffer.AcceptOfferParams(
             receipt.offerId,
@@ -69,6 +69,7 @@ contract AcceptOffer is OtcMarketTestHelper {
         IOtcMarketCreateOffer.CreateOfferReceipt memory createOfferReceipt = _prepare_accept_offer(
             SRC_AMOUNT_LD,
             EXCHANGE_RATE_SD,
+            false,
             false
         );
 
@@ -97,6 +98,7 @@ contract AcceptOffer is OtcMarketTestHelper {
         IOtcMarketCreateOffer.CreateOfferReceipt memory createOfferReceipt = _prepare_accept_offer(
             srcAmountLD,
             exchangeRateSD,
+            false,
             false
         );
 
@@ -110,6 +112,7 @@ contract AcceptOffer is OtcMarketTestHelper {
         IOtcMarketAcceptOffer.AcceptOfferReceipt memory acceptOfferReceipt = _accept_offer(
             createOfferReceipt.offerId,
             srcAcceptAmountSD,
+            false,
             false
         );
         verifyPackets(aEid, addressToBytes32(address(aOtcMarket)));
@@ -155,12 +158,13 @@ contract AcceptOffer is OtcMarketTestHelper {
         IOtcMarketCreateOffer.CreateOfferReceipt memory createOfferReceipt = _prepare_accept_offer(
             srcAmountLD,
             exchangeRateSD,
+            false,
             false
         );
 
         // accept offer
         vm.recordLogs();
-        _accept_offer(createOfferReceipt.offerId, srcAcceptAmountSD, false);
+        _accept_offer(createOfferReceipt.offerId, srcAcceptAmountSD, false, false);
         {
             bytes32 signature = keccak256("OfferAccepted(bytes32,uint64,bytes32,bytes32)");
 
@@ -202,7 +206,8 @@ contract AcceptOffer is OtcMarketTestHelper {
         IOtcMarketCreateOffer.CreateOfferReceipt memory createOfferReceipt = _prepare_accept_offer(
             SRC_AMOUNT_LD,
             EXCHANGE_RATE_SD,
-            true
+            true,
+            false
         );
 
         IOtcMarketAcceptOffer.AcceptOfferParams memory params = IOtcMarketAcceptOffer.AcceptOfferParams(
@@ -233,7 +238,8 @@ contract AcceptOffer is OtcMarketTestHelper {
         IOtcMarketCreateOffer.CreateOfferReceipt memory createOfferReceipt = _prepare_accept_offer(
             srcAmountLD,
             exchangeRateSD,
-            true
+            true,
+            false
         );
 
         uint256 srcBuyerInitialBalance = srcBuyerAddress.balance;
@@ -246,7 +252,8 @@ contract AcceptOffer is OtcMarketTestHelper {
         IOtcMarketAcceptOffer.AcceptOfferReceipt memory acceptOfferReceipt = _accept_offer(
             createOfferReceipt.offerId,
             srcAcceptAmountSD,
-            true
+            true,
+            false
         );
 
         assertEq(
@@ -274,5 +281,66 @@ contract AcceptOffer is OtcMarketTestHelper {
         );
 
         assertEq(bTreasury.balance, dstTreasuryInitialBalance + acceptOfferReceipt.feeLD, "dst treasury balance");
+    }
+
+
+    function testFuzz_MonochainUpdateBalances(uint256 srcAmountLD, uint64 exchangeRateSD, uint256 srcAcceptAmountLD) public {
+        uint256 srcDecimalConversionRate = 10 ** (ERC20(address(aToken)).decimals() - aOtcMarket.SHARED_DECIMALS());
+        srcAmountLD = bound(srcAmountLD, srcDecimalConversionRate, type(uint64).max);
+        exchangeRateSD = uint64(bound(exchangeRateSD, 1, type(uint64).max));
+        srcAcceptAmountLD = bound(srcAcceptAmountLD, srcDecimalConversionRate, srcAmountLD);
+        uint64 srcAcceptAmountSD = srcAcceptAmountLD.toSD(srcDecimalConversionRate);
+
+        // create offer
+        IOtcMarketCreateOffer.CreateOfferReceipt memory createOfferReceipt = _prepare_accept_offer(
+            srcAmountLD,
+            exchangeRateSD,
+            false,
+            true
+        );
+
+        uint256 dstSellerInitialBalance = ERC20(address(bToken)).balanceOf(address(dstSellerAddress));
+        uint256 dstTreasuryInitialBalance = ERC20(address(bToken)).balanceOf(address(aTreasury));
+
+        uint256 srcEscrowInitialBalance = ERC20(address(aToken)).balanceOf(address(aOtcMarket.escrow()));
+        uint256 srcBuyerInitialBalance = ERC20(address(aToken)).balanceOf(address(srcBuyerAddress));
+
+        // accept offer
+        IOtcMarketAcceptOffer.AcceptOfferReceipt memory acceptOfferReceipt = _accept_offer(
+            createOfferReceipt.offerId,
+            srcAcceptAmountSD,
+            false,
+            true
+        );
+
+        assertEq(
+            ERC20(address(aToken)).balanceOf(address(srcBuyerAddress)),
+            srcBuyerInitialBalance + srcAcceptAmountLD.removeDust(srcDecimalConversionRate),
+            "src buyer balance"
+        );
+
+        assertEq(
+            ERC20(address(aToken)).balanceOf(address(aOtcMarket.escrow())),
+            srcEscrowInitialBalance - srcAcceptAmountLD.removeDust(srcDecimalConversionRate),
+            "src escrow balance"
+        );
+
+        uint256 dstAmountLD = (uint256(srcAcceptAmountSD) * uint256(exchangeRateSD) * srcDecimalConversionRate) /
+            (10 ** aOtcMarket.SHARED_DECIMALS());
+        assertEq(acceptOfferReceipt.dstAmountLD, dstAmountLD, "dst amount");
+
+        assertEq(acceptOfferReceipt.dstAmountLD / 100, acceptOfferReceipt.feeLD, "BF dst fee");
+
+        assertEq(
+            ERC20(address(bToken)).balanceOf(address(dstSellerAddress)),
+            dstSellerInitialBalance + (acceptOfferReceipt.dstAmountLD - acceptOfferReceipt.feeLD),
+            "dst seller balance"
+        );
+
+        assertEq(
+            ERC20(address(bToken)).balanceOf(address(aTreasury)),
+            dstTreasuryInitialBalance + acceptOfferReceipt.feeLD,
+            "dst treasury balance"
+        );
     }
 }
