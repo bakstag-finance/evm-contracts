@@ -100,21 +100,25 @@ abstract contract OtcMarketCreateOffer is IOtcMarketCreateOffer, OtcMarketCore {
             revert OfferAlreadyExists(offerId);
         } // revert
 
-        (bytes memory payload, bytes memory options) = _buildCreateOfferMsgAndOptions(
-            offerId,
-            Offer(
-                _srcSellerAddress,
-                _params.dstSellerAddress,
-                eid,
-                _params.dstEid,
-                _params.srcTokenAddress,
-                _params.dstTokenAddress,
-                srcAmountSD,
-                _params.exchangeRateSD
-            )
-        ); // revert
+        if (_params.dstEid != eid) {
+            (bytes memory payload, bytes memory options) = _buildCreateOfferMsgAndOptions(
+                offerId,
+                Offer(
+                    _srcSellerAddress,
+                    _params.dstSellerAddress,
+                    eid,
+                    _params.dstEid,
+                    _params.srcTokenAddress,
+                    _params.dstTokenAddress,
+                    srcAmountSD,
+                    _params.exchangeRateSD
+                )
+            ); // revert
 
-        fee = _quote(_params.dstEid, payload, options, _payInLzToken);
+            fee = _quote(_params.dstEid, payload, options, _payInLzToken);
+        } else{
+            fee = MessagingFee(0, 0);
+        }
         createOfferReceipt = CreateOfferReceipt(offerId, srcAmountLD);
     }
 

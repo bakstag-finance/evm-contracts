@@ -78,13 +78,18 @@ abstract contract OtcMarketAcceptOffer is IOtcMarketAcceptOffer, OtcMarketCore {
         _validateAcceptOffer(_params); // revert
         Offer storage offer = offers[_params.offerId];
 
-        (bytes memory payload, bytes memory options) = _buildAcceptOfferMsgAndOptions(
-            _dstBuyerAddress,
-            offer.srcEid,
-            _params
-        ); // revert
-
-        fee = _quote(offer.srcEid, payload, options, _payInLzToken);
+        
+        if (offer.dstEid != offer.srcEid) {
+            (bytes memory payload, bytes memory options) = _buildAcceptOfferMsgAndOptions(
+                _dstBuyerAddress,
+                offer.srcEid,
+                _params
+            ); // revert
+            fee = _quote(offer.srcEid, payload, options, _payInLzToken);
+        }else{
+            fee = MessagingFee(0,0);
+        }
+        
         acceptOfferReceipt = _toDstAmount(_params.srcAmountSD, offer.exchangeRateSD, offer.dstTokenAddress.toAddress()); // revert
     }
 
