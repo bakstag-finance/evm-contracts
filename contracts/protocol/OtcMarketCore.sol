@@ -56,7 +56,7 @@ abstract contract OtcMarketCore is IOtcMarketCore, OApp, OAppOptionsType3 {
     }
 
     function hashOffer(
-        bytes32 _advertiser,
+        bytes32 _srcSellerAddress,
         uint32 _srcEid,
         uint32 _dstEid,
         bytes32 _srcTokenAddress,
@@ -64,7 +64,7 @@ abstract contract OtcMarketCore is IOtcMarketCore, OApp, OAppOptionsType3 {
         uint64 _exchangeRateSD
     ) public pure virtual override returns (bytes32 offerId) {
         offerId = keccak256(
-            abi.encodePacked(_advertiser, _srcEid, _dstEid, _srcTokenAddress, _dstTokenAddress, _exchangeRateSD)
+            abi.encodePacked(_srcSellerAddress, _srcEid, _dstEid, _srcTokenAddress, _dstTokenAddress, _exchangeRateSD)
         );
     }
 
