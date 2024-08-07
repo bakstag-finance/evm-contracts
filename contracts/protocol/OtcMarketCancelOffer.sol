@@ -80,7 +80,7 @@ abstract contract OtcMarketCancelOffer is IOtcMarketCancelOffer, OtcMarketCore {
     function _validateCancelOffer(bytes32 _srcSellerAddress, bytes32 _offerId) internal view virtual {
         Offer storage offer = offers[_offerId];
 
-        if (offer.srcAmountSD == 0) {
+        if (offer.exchangeRateSD == 0) {
             revert NonexistentOffer(_offerId);
         }
         if (eid != offer.srcEid) {

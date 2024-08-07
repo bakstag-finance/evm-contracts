@@ -50,7 +50,7 @@ abstract contract OtcMarketCreateOffer is IOtcMarketCreateOffer, OtcMarketCore {
             _params.dstTokenAddress,
             _params.exchangeRateSD
         );
-        if (offers[offerId].srcAmountSD != 0) {
+        if (offers[offerId].exchangeRateSD != 0) {
             revert OfferAlreadyExists(offerId);
         }
 
@@ -96,7 +96,7 @@ abstract contract OtcMarketCreateOffer is IOtcMarketCreateOffer, OtcMarketCore {
             _params.dstTokenAddress,
             _params.exchangeRateSD
         );
-        if (offers[offerId].srcAmountSD != 0) {
+        if (offers[offerId].exchangeRateSD != 0) {
             revert OfferAlreadyExists(offerId);
         } // revert
 
@@ -116,7 +116,7 @@ abstract contract OtcMarketCreateOffer is IOtcMarketCreateOffer, OtcMarketCore {
             ); // revert
 
             fee = _quote(_params.dstEid, payload, options, _payInLzToken);
-        } else{
+        } else {
             fee = MessagingFee(0, 0);
         }
         createOfferReceipt = CreateOfferReceipt(offerId, srcAmountLD);

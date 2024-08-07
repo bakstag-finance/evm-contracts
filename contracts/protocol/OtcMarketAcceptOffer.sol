@@ -78,7 +78,6 @@ abstract contract OtcMarketAcceptOffer is IOtcMarketAcceptOffer, OtcMarketCore {
         _validateAcceptOffer(_params); // revert
         Offer storage offer = offers[_params.offerId];
 
-        
         if (offer.dstEid != offer.srcEid) {
             (bytes memory payload, bytes memory options) = _buildAcceptOfferMsgAndOptions(
                 _dstBuyerAddress,
@@ -86,17 +85,17 @@ abstract contract OtcMarketAcceptOffer is IOtcMarketAcceptOffer, OtcMarketCore {
                 _params
             ); // revert
             fee = _quote(offer.srcEid, payload, options, _payInLzToken);
-        }else{
-            fee = MessagingFee(0,0);
+        } else {
+            fee = MessagingFee(0, 0);
         }
-        
+
         acceptOfferReceipt = _toDstAmount(_params.srcAmountSD, offer.exchangeRateSD, offer.dstTokenAddress.toAddress()); // revert
     }
 
     function _validateAcceptOffer(AcceptOfferParams calldata _params) internal view virtual {
         Offer storage offer = offers[_params.offerId];
 
-        if (offer.srcAmountSD == 0) {
+        if (offer.exchangeRateSD == 0) {
             revert NonexistentOffer(_params.offerId);
         }
         if (eid != offer.dstEid) {
