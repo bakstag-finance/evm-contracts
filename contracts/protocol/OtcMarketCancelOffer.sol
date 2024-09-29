@@ -96,7 +96,7 @@ abstract contract OtcMarketCancelOffer is IOtcMarketCancelOffer, OtcMarketCore {
         bytes32 _offerId,
         bytes calldata _extraSendOptions
     ) internal view virtual returns (bytes memory payload, bytes memory options) {
-        bytes memory msgPayload = abi.encodePacked(_offerId, eid);
+        bytes memory msgPayload = abi.encodePacked(_offerId);
         payload = abi.encodePacked(Message.OfferCancelOrder, msgPayload);
 
         bytes memory enforced = enforcedOptions[_dstEid][uint16(Message.OfferCancelOrder)];
