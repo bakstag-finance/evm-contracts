@@ -133,7 +133,8 @@ abstract contract OtcMarketAcceptOffer is IOtcMarketAcceptOffer, OtcMarketCore {
             _params.offerId,
             _params.srcAmountSD,
             _params.srcBuyerAddress,
-            _dstBuyerAddress
+            _dstBuyerAddress,
+            offers[_params.offerId].srcTokenAddress
         );
         payload = abi.encodePacked(Message.OfferAccepted, msgPayload);
 
