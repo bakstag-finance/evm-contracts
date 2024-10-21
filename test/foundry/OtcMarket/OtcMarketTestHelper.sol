@@ -42,7 +42,7 @@ contract OtcMarketTestHelper is TestHelperOz5 {
 
     uint128 public constant GAS_CREATE_OFFER = 200000;
     uint128 public constant GAS_ACCEPT_OFFER = 100000;
-    uint128 public constant GAS_CANCEL_OFFER_ORDER = 450000;
+    uint128 public constant GAS_CANCEL_OFFER_ORDER = 500000;
     uint128 public constant GAS_CANCEL_OFFER = 100000;
 
     address public srcBuyerAddress = makeAddr("srcBuyerAddress");
@@ -165,7 +165,7 @@ contract OtcMarketTestHelper is TestHelperOz5 {
             srcAmountLD,
             exchangeRateSD
         );
-        
+
         (MessagingFee memory fee, ) = aOtcMarket.quoteCreateOffer(addressToBytes32(srcSellerAddress), params, false);
 
         // create an offer
@@ -174,7 +174,7 @@ contract OtcMarketTestHelper is TestHelperOz5 {
             params,
             fee
         );
-        if(!monochain){
+        if (!monochain) {
             // deliver offer created message to bOtcMarket
             verifyPackets(bEid, addressToBytes32(address(bOtcMarket)));
         }
@@ -190,11 +190,10 @@ contract OtcMarketTestHelper is TestHelperOz5 {
 
         vm.deal(dstBuyerAddress, 10 ether);
 
-        if(!monochain){
+        if (!monochain) {
             // set enforced options for b
             _set_enforced_accept_offer();
         }
-        
     }
 
     function _accept_offer(
@@ -223,11 +222,12 @@ contract OtcMarketTestHelper is TestHelperOz5 {
 
         // accept offer
         vm.prank(dstBuyerAddress);
-        (, receipt) = otcMarket.acceptOffer{
-            value: native ? fee.nativeFee + quoteReceipt.dstAmountLD : fee.nativeFee
-        }(params, fee);
+        (, receipt) = otcMarket.acceptOffer{ value: native ? fee.nativeFee + quoteReceipt.dstAmountLD : fee.nativeFee }(
+            params,
+            fee
+        );
 
-        if(!monochain){
+        if (!monochain) {
             // deliver offer accepted message to aOtcMarket
             verifyPackets(aEid, addressToBytes32(address(aOtcMarket)));
         }
@@ -237,26 +237,22 @@ contract OtcMarketTestHelper is TestHelperOz5 {
         uint256 srcAmountLD,
         uint64 exchangeRateSD,
         bool native,
-        bool monochain 
+        bool monochain
     ) internal returns (IOtcMarketCreateOffer.CreateOfferReceipt memory createOfferReceipt) {
         createOfferReceipt = _create_offer(srcAmountLD, exchangeRateSD, native, monochain);
 
-        if(!monochain){
+        if (!monochain) {
             _set_enforced_cancel_offer(createOfferReceipt.offerId);
         }
     }
 
     function _cancel_offer(bytes32 offerId, bool monochain) internal {
-
         MessagingFee memory fee;
         bytes memory extraSendOptions;
 
-        if(!monochain){
+        if (!monochain) {
             MessagingFee memory returnFee = bOtcMarket.quoteCancelOffer(offerId);
-            extraSendOptions = OptionsBuilder.newOptions().addExecutorLzReceiveOption(
-                0,
-                uint128(returnFee.nativeFee)
-            );
+            extraSendOptions = OptionsBuilder.newOptions().addExecutorLzReceiveOption(0, uint128(returnFee.nativeFee));
 
             fee = aOtcMarket.quoteCancelOfferOrder(
                 addressToBytes32(srcSellerAddress),
@@ -264,16 +260,15 @@ contract OtcMarketTestHelper is TestHelperOz5 {
                 extraSendOptions,
                 false
             );
-        }else{
+        } else {
             fee = MessagingFee(0, 0);
             extraSendOptions = bytes("");
         }
-        
-        
+
         vm.prank(srcSellerAddress);
         aOtcMarket.cancelOffer{ value: fee.nativeFee }(offerId, fee, extraSendOptions);
 
-        if(!monochain){
+        if (!monochain) {
             verifyPackets(bEid, addressToBytes32(address(bOtcMarket)));
             verifyPackets(aEid, addressToBytes32(address(aOtcMarket)));
         }
