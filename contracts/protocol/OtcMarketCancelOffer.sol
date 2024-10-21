@@ -110,7 +110,11 @@ abstract contract OtcMarketCancelOffer is IOtcMarketCancelOffer, OtcMarketCore {
         uint32 _srcEid,
         bytes32 _offerId
     ) internal view virtual returns (bytes memory payload, bytes memory options) {
-        bytes memory msgPayload = abi.encodePacked(_offerId, offers[_offerId].srcSellerAddress, offers[_offerId].srcTokenAddress);
+        bytes memory msgPayload = abi.encodePacked(
+            _offerId,
+            offers[_offerId].srcSellerAddress,
+            offers[_offerId].srcTokenAddress
+        );
         payload = abi.encodePacked(Message.OfferCanceled, msgPayload);
 
         options = enforcedOptions[_srcEid][uint16(Message.OfferCanceled)];
@@ -132,8 +136,9 @@ abstract contract OtcMarketCancelOffer is IOtcMarketCancelOffer, OtcMarketCore {
         (bytes memory payload, bytes memory options) = _buildCancelOfferMsgAndOptions(offer.srcEid, offerId);
         _lzSend(offer.srcEid, payload, options, _fee, payable(offer.dstSellerAddress.toAddress()));
 
-        emit OfferCanceled(offerId);
         delete offers[offerId];
+
+        emit OfferCanceled(offerId);
     }
 
     function _receiveOfferCanceled(bytes calldata _msgPayload) internal virtual override {
@@ -148,7 +153,8 @@ abstract contract OtcMarketCancelOffer is IOtcMarketCancelOffer, OtcMarketCore {
             offer.srcAmountSD.toLD(_getDecimalConversionRate(srcTokenAddress))
         );
 
-        emit OfferCanceled(offerId);
         delete offers[offerId];
+
+        emit OfferCanceled(offerId);
     }
 }

@@ -64,7 +64,6 @@ abstract contract OtcMarketCreateOffer is IOtcMarketCreateOffer, OtcMarketCore {
             srcAmountSD,
             _params.exchangeRateSD
         );
-        emit OfferCreated(offerId, offers[offerId]);
 
         if (eid != _params.dstEid) {
             // crosschain offer
@@ -75,6 +74,8 @@ abstract contract OtcMarketCreateOffer is IOtcMarketCreateOffer, OtcMarketCore {
         createOfferReceipt = CreateOfferReceipt(offerId, srcAmountLD);
 
         Transfer.transferFrom(srcTokenAddress, address(escrow), srcAmountLD);
+
+        emit OfferCreated(offerId, offers[offerId]);
     }
 
     function quoteCreateOffer(
