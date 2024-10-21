@@ -54,6 +54,8 @@ abstract contract OtcMarketCreateOffer is IOtcMarketCreateOffer, OtcMarketCore {
             revert OfferAlreadyExists(offerId);
         }
 
+        Transfer.transferFrom(srcTokenAddress, address(escrow), srcAmountLD);
+
         offers[offerId] = Offer(
             srcSellerAddress,
             _params.dstSellerAddress,
@@ -72,8 +74,6 @@ abstract contract OtcMarketCreateOffer is IOtcMarketCreateOffer, OtcMarketCore {
         }
 
         createOfferReceipt = CreateOfferReceipt(offerId, srcAmountLD);
-
-        Transfer.transferFrom(srcTokenAddress, address(escrow), srcAmountLD);
 
         emit OfferCreated(offerId, offers[offerId]);
     }
