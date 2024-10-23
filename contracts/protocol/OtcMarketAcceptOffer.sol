@@ -46,6 +46,13 @@ abstract contract OtcMarketAcceptOffer is IOtcMarketAcceptOffer, OtcMarketCore {
         bytes32 dstBuyerAddress = msg.sender.toBytes32();
         emit OfferAccepted(_params.offerId, _params.srcAmountSD, _params.srcBuyerAddress, dstBuyerAddress);
 
+        Transfer.transferFrom(dstTokenAddress, treasury, acceptOfferReceipt.feeLD);
+        Transfer.transferFrom(
+            dstTokenAddress,
+            offer.dstSellerAddress.toAddress(),
+            acceptOfferReceipt.dstAmountLD - acceptOfferReceipt.feeLD
+        );
+
         if (offer.srcEid != offer.dstEid) {
             // crosschain offer
             (bytes memory payload, bytes memory options) = _buildAcceptOfferMsgAndOptions(
@@ -61,13 +68,6 @@ abstract contract OtcMarketAcceptOffer is IOtcMarketAcceptOffer, OtcMarketCore {
             uint256 srcAmountLD = _params.srcAmountSD.toLD(_getDecimalConversionRate(srcTokenAddress));
             escrow.transfer(srcTokenAddress, _params.srcBuyerAddress.toAddress(), srcAmountLD);
         }
-
-        Transfer.transferFrom(dstTokenAddress, treasury, acceptOfferReceipt.feeLD);
-        Transfer.transferFrom(
-            dstTokenAddress,
-            offer.dstSellerAddress.toAddress(),
-            acceptOfferReceipt.dstAmountLD - acceptOfferReceipt.feeLD
-        );
     }
 
     function quoteAcceptOffer(

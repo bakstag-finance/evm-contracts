@@ -42,7 +42,7 @@ contract OtcMarketTestHelper is TestHelperOz5 {
 
     uint128 public constant GAS_CREATE_OFFER = 200000;
     uint128 public constant GAS_ACCEPT_OFFER = 100000;
-    uint128 public constant GAS_CANCEL_OFFER_ORDER = 450000;
+    uint128 public constant GAS_CANCEL_OFFER_ORDER = 475000;
     uint128 public constant GAS_CANCEL_OFFER = 100000;
 
     address public srcBuyerAddress = makeAddr("srcBuyerAddress");
