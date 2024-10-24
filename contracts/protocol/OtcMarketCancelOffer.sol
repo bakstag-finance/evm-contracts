@@ -41,15 +41,17 @@ abstract contract OtcMarketCancelOffer is IOtcMarketCancelOffer, OtcMarketCore {
         } else {
             // monochain offer
             address srcTokenAddress = offer.srcTokenAddress.toAddress();
-
-            escrow.transfer(
-                srcTokenAddress,
-                offer.srcSellerAddress.toAddress(),
-                offer.srcAmountSD.toLD(_getDecimalConversionRate(srcTokenAddress))
-            );
+            address srcSellerAddress = offer.srcSellerAddress.toAddress();
+            uint256 srcAmountLD = offer.srcAmountSD.toLD(_getDecimalConversionRate(srcTokenAddress));
 
             emit OfferCanceled(_offerId);
             delete offers[_offerId];
+
+            escrow.transfer(
+                srcTokenAddress,
+                srcSellerAddress,
+                srcAmountLD
+            );
         }
     }
 
