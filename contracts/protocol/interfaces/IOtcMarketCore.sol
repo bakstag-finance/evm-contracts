@@ -37,6 +37,11 @@ interface IOtcMarketCore {
     error InvalidEid(uint32 required, uint32 provided);
 
     /**
+     * @dev Provided native token local decimals cannot be smaller than shared decimals.
+     */
+    error InvalidNativeDecimals();
+
+    /**
      * @dev Emitted when a treasury is set.
      */
     event TreasurySet(address treasury);
