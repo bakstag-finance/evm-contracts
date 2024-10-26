@@ -46,9 +46,10 @@ abstract contract OtcMarketAcceptOffer is IOtcMarketAcceptOffer, OtcMarketCore {
         bytes32 dstBuyerAddress = msg.sender.toBytes32();
         emit OfferAccepted(_params.offerId, _params.srcAmountSD, _params.srcBuyerAddress, dstBuyerAddress);
 
-        Transfer.transferFrom(dstTokenAddress, treasury, acceptOfferReceipt.feeLD);
+        Transfer.transferFrom(dstTokenAddress, msg.sender, treasury, acceptOfferReceipt.feeLD);
         Transfer.transferFrom(
             dstTokenAddress,
+            msg.sender,
             offer.dstSellerAddress.toAddress(),
             acceptOfferReceipt.dstAmountLD - acceptOfferReceipt.feeLD
         );
