@@ -58,9 +58,9 @@ contract OtcMarketTestHelper is TestHelperOz5 {
         super.setUp();
         setUpEndpoints(3, LibraryType.UltraLightNode);
 
-        aOtcMarket = new OtcMarket(aTreasury, address(endpoints[aEid]), address(this));
-        bOtcMarket = new OtcMarket(bTreasury, address(endpoints[bEid]), address(this));
-        cOtcMarket = new OtcMarket(cTreasury, address(endpoints[cEid]), address(this));
+        aOtcMarket = new OtcMarket(18, aTreasury, address(endpoints[aEid]), address(this));
+        bOtcMarket = new OtcMarket(18, bTreasury, address(endpoints[bEid]), address(this));
+        cOtcMarket = new OtcMarket(18, cTreasury, address(endpoints[cEid]), address(this));
 
         xToken = new Token4D(address(this));
         sToken = new Token6D(address(this));

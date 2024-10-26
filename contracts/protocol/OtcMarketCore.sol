@@ -17,15 +17,19 @@ import { Escrow } from "./Escrow.sol";
 abstract contract OtcMarketCore is IOtcMarketCore, OApp, OAppOptionsType3 {
     uint8 public constant FEE = 100; // 1/100 = 1%
     uint8 public constant SHARED_DECIMALS = 6;
-
+    
+    uint8 public immutable nativeDecimals; // for EVM 18, for TRON 6
     uint32 public immutable eid;
     Escrow public immutable escrow;
 
     address public treasury;
 
-    constructor(address _treasury, address _endpoint, address _delegate) OApp(_endpoint, _delegate) Ownable(_delegate) {
+    constructor(uint8 _nativeDecimals, address _treasury, address _endpoint, address _delegate) OApp(_endpoint, _delegate) Ownable(_delegate) {
         eid = ILayerZeroEndpointV2(endpoint).eid();
         escrow = new Escrow(address(this));
+
+        if (_nativeDecimals < SHARED_DECIMALS) revert InvalidNativeDecimals();
+        nativeDecimals = _nativeDecimals;
 
         treasury = _treasury;
         emit TreasurySet(_treasury);
@@ -72,7 +76,7 @@ abstract contract OtcMarketCore is IOtcMarketCore, OApp, OAppOptionsType3 {
         address _tokenAddress
     ) internal view virtual returns (uint256 decimalConversionRate) {
         decimalConversionRate = _tokenAddress == address(0)
-            ? 10 ** 12 // native
+            ? 10 ** (nativeDecimals - SHARED_DECIMALS) // native
             : 10 ** (ERC20(_tokenAddress).decimals() - SHARED_DECIMALS); // token
     }
 
