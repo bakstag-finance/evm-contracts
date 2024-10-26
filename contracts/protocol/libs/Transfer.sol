@@ -25,7 +25,7 @@ library Transfer {
             (bool success, ) = to.call{ value: amount }("");
             if (!success) revert NativeTransferFailed(to, amount);
         } else {
-            // fungible token transfer
+            // fungible token transferFrom
             IERC20(token).safeTransferFrom(from, to, amount);
         }
     }
